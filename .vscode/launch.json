@@ -1,0 +1,25 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "python - 3_generate_database.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/model/v1/RGM/3_generate_database.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+
+        {
+            "name": "python - 1_pretrain_rgm.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/model/v1/RGM/1_pretrain_rgm.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+    ]
+}

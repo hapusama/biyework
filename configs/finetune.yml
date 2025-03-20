@@ -1,0 +1,43 @@
+##### Parameters used for area a #####
+# some parameters are reused for area b
+# Training settings
+train_flag: True
+data_name: "FLOOR3.pth"
+save_model_name: "RGM_pretrain.ckpt"
+frac_for_valid: 0.05
+frac_for_test: 0.25
+
+# Parameters for location classifier
+num_locs: 37
+n_layers: 3
+input_dim: 4
+hidden_dim: 128
+dropout_pra: 0.1
+learning_rate: 0.0001
+num_epochs: 100
+batch_size: 256
+location_vector_name: "location_vector.csv"
+config: "configs/finetune.yml"
+
+##### New parameters for pre-training rgm #####
+loc_dim: 3             # for location vector
+num_timesteps: 1000
+schedule: "sigmoid"    # cosine, linear, quadratic, sigmoid
+data_channels: 2      # number of data channels（unet卷积层通道数）
+channel_dimension_scale: [1, 2, 4, 8]
+num_epochs_rgm: 100
+batch_size_rgm: 256
+learning_rate_rgm: 0.001
+rgm_pretrain_path: "1_pretrained_rgm.ckpt"
+
+
+
+##### New parameters for fine-tuning rGM #####
+data_name_ft: "FLOOR3.pth"
+ratios_locs: 0.25
+data_name_fake: "csi_area_b_genetated.pth"
+save_model_name_fake: "classifier_fingerprint.ckpt"
+num_epochs_rgm_ft: 50
+rgm_fine_tune_path: "2_finetuned_rgm.ckpt"
+
+
