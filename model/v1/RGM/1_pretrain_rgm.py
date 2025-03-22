@@ -11,7 +11,19 @@ from src.denoising_diffusion_process.samplers.DDPM import DDPM_Sampler
 from src. pixel_diffusion import PixelDiffusionConditional_v2
 from sklearn.preprocessing import MinMaxScaler
 from src import EMA
-
+from pytorch_lightning.callbacks import ModelCheckpoint
+import numpy as np
+torch.manual_seed(42)
+np.random.seed(42)
+class suibian(torch.nn.Module):
+    def __init__(self,*args):
+        super(suibian, self).__init__() 
+        self.copy=PixelDiffusionConditional_v2(*args)
+        self.linear = torch.nn.Linear(3,2*16)
+    def forward(self,x):
+        x =self.linear(x)
+        x=x.reshape(-1,2,16)
+        return self.copy(x)
 
 if __name__ == '__main__':
     args = parse_args_pretrain()
@@ -29,14 +41,6 @@ if __name__ == '__main__':
     rssi = loaded['rssi']
     snr = loaded['snr']
     label = loaded['label']
-    # 对rssi和snr进行归一化 z-score
-    # rssi_mean = rssi.mean(dim=0, keepdim=True)
-    # rssi_std = rssi.std(dim=0, keepdim=True)
-    # rssi = (rssi - rssi_mean) / rssi_std
-
-    # snr_mean = snr.mean(dim=0, keepdim=True)
-    # snr_std = snr.std(dim=0, keepdim=True)
-    # snr = (snr - snr_mean) / snr_std
     
     # 对rssi和snr进行缩放到[-1, 1]范围
     scaler = MinMaxScaler(feature_range=(-1, 1))
@@ -68,7 +72,6 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
 
     model_path_train_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
-    model_path_train_rgm_run = os.path.join(output_dir, f"pretrained_rgm_running.ckpt")
 
     rgm_logs = os.path.join(output_dir, f"rgm_log")
     os.makedirs(rgm_logs, exist_ok=True)
@@ -79,8 +82,8 @@ if __name__ == '__main__':
     # 降噪的过程（反向），加噪那一堆参数需要进一步了解，ddpm应该是降噪用的 下面那个是加噪的前向传播
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        dirpath=output_dir, 
-        filename=model_path_train_rgm_run,  # seems does not used
+        dirpath="model\\v1\\output\\lossmin",
+        filename="val_loss_pretrain",  # seems does not used
         monitor="val_loss",
         mode="min",
         save_top_k=1,
@@ -101,14 +104,22 @@ if __name__ == '__main__':
 
     train_loader = DataLoader(train_data_set, batch_size=batch_si, shuffle=True, num_workers=4, persistent_workers=True)
     val_loader = DataLoader(valid_data_set, batch_size=batch_si, shuffle=False, num_workers=4, persistent_workers=True)
+    lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='epoch')
+    # 新增早停回调（监控 val_loss）
+    early_stop_callback = pl.callbacks.EarlyStopping(
+        monitor="val_loss",    # 监控验证损失
+        patience=10,           # 连续10个epoch未改善则停止
+        mode="min",            # 监控指标越小越好
+        verbose=True           # 打印停止信息
+    )
 
     trainer = pl.Trainer(max_epochs=num_epochs, 
-                        callbacks=[EMA(0.9999)], 
+                        callbacks=[EMA(0.9999),lr_monitor, checkpoint_callback,early_stop_callback], 
                         accelerator='gpu', 
                         devices=[0], 
+                         enable_progress_bar=True,
                         check_val_every_n_epoch=1,
                         logger=tb_logger)
-    
     trainer.fit(model, train_loader, val_loader)
 
     trainer.save_checkpoint(model_path_train_rgm)

@@ -29,15 +29,6 @@ if __name__ == '__main__':
     rssi = loaded['rssi']
     snr = loaded['snr']
     label = loaded['label']
-    # rssi_mean = rssi.mean(dim=0, keepdim=True)
-    # rssi_std = rssi.std(dim=0, keepdim=True)
-    # rssi = (rssi - rssi_mean) / rssi_std
-
-    # snr_mean = snr.mean(dim=0, keepdim=True)
-    # snr_std = snr.std(dim=0, keepdim=True)
-    # snr = (snr - snr_mean) / snr_std
-    
-    # 对rssi和snr进行缩放到[-1, 1]范围
     scaler = MinMaxScaler(feature_range=(-1, 1))
     rssi = torch.tensor(scaler.fit_transform(rssi), dtype=torch.float32)
     snr = torch.tensor(scaler.fit_transform(snr), dtype=torch.float32)
@@ -64,8 +55,8 @@ if __name__ == '__main__':
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
     print("\nThe loaded diffusion model: {}\n".format(loaded_fine_tuned_rgm))
-
-    diffusion_model = PixelDiffusionConditional_v2.load_from_checkpoint(checkpoint_path=loaded_fine_tuned_rgm, 
+    # 这里先不用 loaded_fine_tuned_rgm
+    diffusion_model = PixelDiffusionConditional_v2.load_from_checkpoint(checkpoint_path=r"model\v1\output\lossmin\val_loss_pretrain.ckpt", 
                                                                 train_dataset=complex_dataset, 
                                                                 input_dim=input_dim, 
                                                                 loc_dim=loc_dim, 
@@ -92,7 +83,6 @@ if __name__ == '__main__':
     # generate data for each location x全都代表csi
     for loc_int in range(num_locs):
         print("\nGenerating CSI data for Location ID: {}\n".format(loc_int))
-        # 64个点 每个点有500个batch的数据
         real_data, loc_tensor, loc_int_tensor = get_features_by_label_v4(complex_dataset, loc_int)
         batch_input = loc_tensor.to(device)
         # 500

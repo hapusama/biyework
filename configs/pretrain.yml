@@ -28,4 +28,3 @@ num_epochs_rgm: 100
 batch_size_rgm: 256
 learning_rate_rgm: 0.001
 rgm_pretrain_path: "1_pretrained_rgm.ckpt"
-

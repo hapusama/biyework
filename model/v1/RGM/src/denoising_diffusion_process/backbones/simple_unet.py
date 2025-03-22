@@ -34,54 +34,65 @@ class Residual(nn.Module):
         return self.fn(x, *args, **kwargs) + x
 
 
-class m_Linear(nn.Module):
+# class m_Linear(nn.Module):
 
+#     def __init__(self, size_in, size_out):
+#         super().__init__()
+
+#         self.size_in, self.size_out = size_in, size_out
+
+#         # Creation
+#         self.weights_real = nn.Parameter(torch.randn(size_in, size_out, dtype=torch.float32))
+#         self.weights_imag = nn.Parameter(torch.randn(size_in, size_out, dtype=torch.float32))
+#         self.bias = nn.Parameter(torch.randn(2, size_out, dtype=torch.float32))
+
+#         # Initialization
+#         nn.init.xavier_uniform_(self.weights_real, gain=1)
+#         nn.init.xavier_uniform_(self.weights_imag, gain=1)
+#         nn.init.zeros_(self.bias)
+
+
+#     def swap_real_imag(self, x):
+#         h = x
+
+#         h = h.flip(dims=[-2])   # 256 4 2 8 => 256 4 2 8 实部虚部翻转
+
+#         h = h.transpose(-2, -1) #256 4 2 8 => 256 4 8 2
+
+#         # performs an element-wise multiplication along the last dimension
+#         h = h * torch.tensor([-1, 1]).cuda()
+
+#         h = h.transpose(-2, -1)
+
+#         return h
+
+
+#     def forward(self, x):
+#         h = x
+#         # 256 4 2 4 * 4 8 => 256 4 2 8
+#         h1 = torch.matmul(h, self.weights_real)
+
+#         h2 = torch.matmul(h, self.weights_imag)
+
+#         h2 = self.swap_real_imag(h2)
+
+#         h = h1 + h2
+
+#         h = torch.add(h, self.bias)
+
+#         return h
+class m_Linear(nn.Module):
     def __init__(self, size_in, size_out):
         super().__init__()
-
         self.size_in, self.size_out = size_in, size_out
 
-        # Creation
-        self.weights_real = nn.Parameter(torch.randn(size_in, size_out, dtype=torch.float32))
-        self.weights_imag = nn.Parameter(torch.randn(size_in, size_out, dtype=torch.float32))
-        self.bias = nn.Parameter(torch.randn(2, size_out, dtype=torch.float32))
-
-        # Initialization
-        nn.init.xavier_uniform_(self.weights_real, gain=1)
-        nn.init.xavier_uniform_(self.weights_imag, gain=1)
-        nn.init.zeros_(self.bias)
-
-
-    def swap_real_imag(self, x):
-        h = x
-
-        h = h.flip(dims=[-2])
-
-        h = h.transpose(-2, -1)
-
-        # performs an element-wise multiplication along the last dimension
-        h = h * torch.tensor([-1, 1]).cuda()
-
-        h = h.transpose(-2, -1)
-
-        return h
-
+        # 使用 nn.Linear 实现全连接层
+        self.linear = nn.Linear(size_in, size_out)
 
     def forward(self, x):
-        h = x
-
-        h1 = torch.matmul(h, self.weights_real)
-
-        h2 = torch.matmul(h, self.weights_imag)
-
-        h2 = self.swap_real_imag(h2)
-
-        h = h1 + h2
-
-        h = torch.add(h, self.bias)
-
+        # 直接使用全连接层进行前向传播
+        h = self.linear(x)
         return h
-
 
 class LinearAttention(nn.Module):
 
@@ -98,7 +109,7 @@ class LinearAttention(nn.Module):
         b, c, w = x.shape
         qkv = self.to_qkv(x).chunk(3, dim=1)
         q, k, v = map(lambda t: rearrange(t, 'b (h c) w -> b h c w', h=self.heads), qkv)
-        q = q * self.scale
+        q = q * self.scale  #torch.Size([512, 4, 32, 4])
 
         k = k.softmax(dim=-1)
         context = torch.einsum('b h d n, b h e n -> b h d e', k, v)
@@ -149,7 +160,7 @@ class UpBlock(nn.Module):
         complex_di = 2
 
         x = x.reshape((-1, complex_di, ch, self.leng))   # (@ * 2, ch, dim) => (@, 2, ch, dim)
-        x = x.permute(0, 2, 1, 3)                        # (@, 2, ch, dim) => (@, ch, 2, dim)
+        x = x.permute(0, 2, 1, 3)                        # (@, 2, ch, dim) => (@, ch, 2, dim) 2是实部虚部
 
         x = self.up(x)                                   # (@, ch, 2, dim) => (@, ch, 2, dim * 2)
         x = x.permute(0, 2, 1, 3)                        # (@, ch, 2, dim * 2) => (@, 2, ch, dim * 2)
@@ -230,16 +241,22 @@ class ComplexTimeBlock(nn.Module):
             nn.Linear(time_emb_dim, dim)
         ) if exists(time_emb_dim) else None
   
-        self.ds_conv = nn.Conv1d(dim, dim, 7, padding=3, groups=dim)
-
+        # self.ds_conv = nn.Conv1d(dim, dim, 7, padding=3, groups=dim)
+        self.ds_conv = nn.Conv1d(dim, dim, 1, padding=0)
+        # self.net = nn.Sequential(
+        #     LayerNorm(dim) if norm else nn.Identity(),
+        #     nn.Conv1d(dim, dim_out * mult, 3, padding=1),
+        #     nn.GELU(),
+        #     nn.Conv1d(dim_out * mult, dim_out, 3, padding=1)
+        #     )
         self.net = nn.Sequential(
             LayerNorm(dim) if norm else nn.Identity(),
-            nn.Conv1d(dim, dim_out * mult, 3, padding=1),
+            nn.Conv1d(dim, dim_out * mult, 1, padding=0),
             nn.GELU(),
-            nn.Conv1d(dim_out * mult, dim_out, 3, padding=1)
+            nn.Conv1d(dim_out * mult, dim_out, 1, padding=0)
             )
 
-        self.res_conv = nn.Conv1d(dim, dim_out, 1) if dim != dim_out else nn.Identity()
+        self.res_conv = nn.Conv1d(dim, dim_out, 1,padding=0) if dim != dim_out else nn.Identity()
 
 
     def forward(self, x, time_emb=None):
@@ -343,7 +360,7 @@ class UnetComplexBlock(nn.Module):
         # feature_x: torch.Size([@, 2, 16])
         # time: torch.Size([@])
         # location: torch.Size([@, 7])
-
+    
         time_2 = torch.cat((time, time), dim=0)                  # (@, ) => (@ * 2, )
         t = self.time_mlp(time_2)                                # (@ * 2, ) => (@ * 2, dim)
 
@@ -354,11 +371,11 @@ class UnetComplexBlock(nn.Module):
 
         feature_x = feature_x.unsqueeze(dim=1)                   # (@, 2, dim) => (@, 1, 2, dim)
 
-        x = torch.cat((feature_x, class_cond), dim=1)
-        [channle, complex_dim, length] = x.shape[-3: ]
+        x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, 2, dim) => (@, 2, 2, dim)
+        [channle, complex_dim, length] = x.shape[-3: ]           # channel:2 complex_dim:2 length:dim
 
-        x = x.permute(0, 2, 1, 3)
-        x = x.reshape((-1, channle, length))                     # (@, 2, 2, dim) => (@ * 2, 2, dim)
+        x = x.permute(0, 2, 1, 3)                                # channel和complex_dim交换位置 (@, 2, 2, dim) => (@, 2, 2, dim)
+        x = x.reshape((-1, channle, length))                     # (@, 2, 2, dim) => (@ * 2, 2, dim) 512 2 4其中2代表condition or signal
 
         h = []
         for convnext, convnext2, attn, upsample in self.downs:
@@ -388,7 +405,4 @@ class UnetComplexBlock(nn.Module):
         out = out.squeeze(dim=1)                              # (@, 1, 2, dim) => (@, 2, dim)
 
         return out
-
-
-
 

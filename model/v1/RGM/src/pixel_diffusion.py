@@ -49,21 +49,42 @@ class PixelDiffusion(pl.LightningModule):
         return input.clip(-1, 1)
 
 
-    def training_step(self, batch_data, batch_idx):   
-        images, _ = batch_data
-        loss = self.model.p_loss(self.input_T(images))
+    # def training_step(self, batch_data, batch_idx):   
+    #     images, _ = batch_data
+    #     loss = self.model.p_loss(self.input_T(images))
 
-        self.log('train_loss', loss, on_step=True, on_epoch=True)
+    #     self.log('train_loss', loss, on_step=True, on_epoch=True)
 
-        return loss
+    #     return loss
     
 
-    def validation_step(self, batch_data, batch_idx):     
-        images, _ = batch_data
-        loss = self.model.p_loss(self.input_T(images))
+    # def validation_step(self, batch_data, batch_idx):     
+    #     images, _ = batch_data
+    #     loss = self.model.p_loss(self.input_T(images))
 
-        self.log('val_loss',loss, on_step=True, on_epoch=True)
+    #     self.log('val_loss',loss, on_step=True, on_epoch=True)
         
+    #     return loss
+    def training_step(self, batch_data, batch_idx):   
+        signal_vec, location_vec, _ = batch_data
+        loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        self.log('train_loss', loss, 
+                 on_step=True, 
+                 on_epoch=True, 
+                 prog_bar=True,  # 在进度条右侧显示实时损失
+                 logger=True)    # 同时记录到TensorBoard
+        
+        return loss
+            
+    def validation_step(self, batch_data, batch_idx):
+        signal_vec, location_vec, _ = batch_data
+
+        loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        # 修改点2: 验证损失也显示在进度条
+        self.log('val_loss', loss, 
+                 on_epoch=True,   # 验证通常只关注epoch平均
+                 prog_bar=True, 
+                 logger=True)
         return loss
     
 
@@ -109,7 +130,11 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
         self.valid_dataset = valid_dataset
         self.batch_size=batch_size
         self.lr = lr
-
+        # 新增：初始化历史记录
+        self.history = {
+            'train_loss': [],
+            'val_loss': []
+        }
         self.model = DenoisingDiffusionConditionalProcess(input_dim, 
                                                           loc_dim=loc_dim,
                                                           channels=channels, 
@@ -122,8 +147,11 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
     def training_step(self, batch_data, batch_idx):   
         signal_vec, location_vec, _ = batch_data
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
-
-        self.log('train_loss', loss, on_step=True, on_epoch=True)
+        self.log('train_loss', loss, 
+                 on_step=True, 
+                 on_epoch=True, 
+                 prog_bar=True,  # 在进度条右侧显示实时损失
+                 logger=True)    # 同时记录到TensorBoard
         
         return loss
             
@@ -131,9 +159,36 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
         signal_vec, location_vec, _ = batch_data
 
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
-
-        self.log('val_loss', loss, on_step=True, on_epoch=True)
-        
+        # 修改点2: 验证损失也显示在进度条
+        self.log('val_loss', loss, 
+                 on_epoch=True,   # 验证通常只关注epoch平均
+                 prog_bar=True, 
+                 logger=True)
         return loss
-
+    
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True)
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': scheduler,
+                'monitor': 'val_loss'
+            }
+        }
+    def on_train_epoch_end(self):
+        # 获取当前epoch的聚合损失值
+        train_loss = self.trainer.callback_metrics['train_loss_epoch'].item()
+        val_loss = self.trainer.callback_metrics['val_loss'].item()
+        
+        # 保存到历史记录
+        self.history['train_loss'].append(train_loss)
+        self.history['val_loss'].append(val_loss)
+        
+        # 实时打印历史（格式与你的截图类似）
+        print(f"\nEpoch {self.current_epoch:02d} Summary:")
+        print(f"Train Loss: {train_loss:.3f} | Val Loss: {val_loss:.3f}")
+        print("History:")
+        for i, (t_loss, v_loss) in enumerate(zip(self.history['train_loss'], self.history['val_loss'])):
+            print(f"Epoch {i:02d}: {t_loss:.3f} / {v_loss:.3f}")
 
