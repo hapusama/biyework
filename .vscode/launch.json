@@ -21,5 +21,13 @@
             "console": "integratedTerminal",
             "justMyCode": true
         },
+        {
+            "name": "python - classifier_fingerprint.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/model/v1/RGM/classifier_fingerprint.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
     ]
 }

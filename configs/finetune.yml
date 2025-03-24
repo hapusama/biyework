@@ -10,7 +10,7 @@ frac_for_test: 0.25
 # Parameters for location classifier
 num_locs: 37
 n_layers: 3
-input_dim: 4
+input_dim: 16
 hidden_dim: 128
 dropout_pra: 0.1
 learning_rate: 0.0001
@@ -29,13 +29,13 @@ num_epochs_rgm: 100
 batch_size_rgm: 256
 learning_rate_rgm: 0.001
 rgm_pretrain_path: "1_pretrained_rgm.ckpt"
-
+signal_feature_dim: 4
 
 
 ##### New parameters for fine-tuning rGM #####
 data_name_ft: "FLOOR3.pth"
 ratios_locs: 0.25
-data_name_fake: "csi_area_b_genetated.pth"
+data_name_fake: "floor3.pth"
 save_model_name_fake: "classifier_fingerprint.ckpt"
 num_epochs_rgm_ft: 50
 rgm_fine_tune_path: "2_finetuned_rgm.ckpt"

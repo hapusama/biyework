@@ -87,6 +87,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
             # prediction of next state
             x_t = sampler(x_t, t, z_t)
             
+        print(x_t.shape)
         return x_t
 
     # x is signal condition is location vector

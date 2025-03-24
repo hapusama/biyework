@@ -89,16 +89,16 @@ class ComplexDatasetLocs(Dataset):
         real = rssi
         imaginary = snr
         # 以上都不能为空
-        if real is None or imaginary is None or label is None: 
-            raise ValueError(f"datasetloc part is None at index {idx}.")
-        complex_number = torch.stack((real, imaginary), dim=0)
+        # if real is None or imaginary is None or label is None: 
+        #     raise ValueError(f"datasetloc part is None at index {idx}.")
+        # complex_number = torch.stack((real, imaginary), dim=0)
         label_feature = self.label_features.get(label.item())
          # 确保返回的值都是一维张量
-        if len(complex_number.shape) == 1:
-            # 将shape变为（2，1）
-            complex_number = complex_number.unsqueeze(1)
+        # if len(complex_number.shape) == 1:
+        #     # 将shape变为（2，1）
+        #     complex_number = complex_number.unsqueeze(1)
 
-        return complex_number, label_feature, label
+        return rssi, label_feature, label
 
 
 class ShiftedDataset(Dataset):

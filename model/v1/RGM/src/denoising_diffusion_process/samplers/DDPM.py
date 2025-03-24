@@ -59,7 +59,7 @@ class DDPM_Sampler(nn.Module):
         
         assert (t < self.num_timesteps).all()
         
-        beta_t = self.betas[t].view(x_t.shape[0], 1, 1)
+        beta_t = self.betas[t].view(x_t.shape[0], 1, 1) #每一步的噪声量 alpha_t = 1 - beta_t是每一步保留的信号量的比例
 
         alpha_one_minus_cumprod_sqrt_t = self.alphas_one_minus_cumprod_sqrt[t].view(x_t.shape[0], 1, 1)
 

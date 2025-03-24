@@ -58,11 +58,11 @@ def training(model,
         correct_count = total_count = 0
         total_valid_loss = 0
         with torch.no_grad():
-            for batch_idx, (_, data_batch_real, _, label_int_batch) in enumerate(valid_data_loader_t):
+            for batch_idx, (data_batch_fake, data_batch_real, _, label_int_batch) in enumerate(valid_data_loader_t):
 
-                data_batch_real = data_batch_real.to(device)
+                data_batch_fake = data_batch_fake.to(device)
 
-                label_pred_onehot = model(data_batch_real).cpu()             # [@, n_class]
+                label_pred_onehot = model(data_batch_fake).cpu()             # [@, n_class]
                 label_pred = torch.argmax(label_pred_onehot, dim=-1)    # [@]
 
                 correct_count += (label_pred == label_int_batch).sum().item()
@@ -170,7 +170,8 @@ if __name__ == '__main__':
                                                             batch_size_t, 
                                                             frac_for_valid, 
                                                             frac_for_test)
-    
+    # 打印train_dataloader第15360个batch的数据
+    train_data_list = list(train_loader)
     device_m = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     classifier_model = LocationClassifier(input_dim, 

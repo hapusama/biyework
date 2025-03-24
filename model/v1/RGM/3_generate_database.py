@@ -29,9 +29,6 @@ if __name__ == '__main__':
     rssi = loaded['rssi']
     snr = loaded['snr']
     label = loaded['label']
-    scaler = MinMaxScaler(feature_range=(-1, 1))
-    rssi = torch.tensor(scaler.fit_transform(rssi), dtype=torch.float32)
-    snr = torch.tensor(scaler.fit_transform(snr), dtype=torch.float32)
     location_vector_path = os.path.join(output_dir, args.location_vector_name)
 
     complex_dataset = ComplexDatasetLocs(rssi, 
@@ -49,14 +46,14 @@ if __name__ == '__main__':
     model_loss = F.mse_loss
     data_channels = args.data_channels
     dimension_scale = args.channel_dimension_scale
-
-    loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-
+    signal_feature_dim=args.signal_feature_dim
+    #loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
+    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v1.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
     print("\nThe loaded diffusion model: {}\n".format(loaded_fine_tuned_rgm))
     # 这里先不用 loaded_fine_tuned_rgm
-    diffusion_model = PixelDiffusionConditional_v2.load_from_checkpoint(checkpoint_path=r"model\v1\output\lossmin\val_loss_pretrain.ckpt", 
+    diffusion_model = PixelDiffusionConditional_v2.load_from_checkpoint(checkpoint_path=loaded_fine_tuned_rgm, 
                                                                 train_dataset=complex_dataset, 
                                                                 input_dim=input_dim, 
                                                                 loc_dim=loc_dim, 
@@ -68,13 +65,14 @@ if __name__ == '__main__':
                                                                 loss_fn=model_loss, 
                                                                 schedule=schedule, 
                                                                 num_timesteps=num_timesteps, 
-                                                                sampler=sampler_ddpm)
+                                                                sampler=sampler_ddpm,signal_feature_dim=signal_feature_dim)
     
     diffusion_model.to(device)
     #2, 16 2代表的是两根天线 16个complex值（input dim）
     input_vec, _, _ = complex_dataset[0]
-    data_dimension, length = input_vec.shape
-
+    #data_dimension, length = input_vec.shape
+    data_dimension=data_channels
+    length=input_dim
     # for saving generated and real collected data
     x_generated_list = []
     x_real_list = []
@@ -83,17 +81,22 @@ if __name__ == '__main__':
     # generate data for each location x全都代表csi
     for loc_int in range(num_locs):
         print("\nGenerating CSI data for Location ID: {}\n".format(loc_int))
+        # real_data[0]: [4,]
         real_data, loc_tensor, loc_int_tensor = get_features_by_label_v4(complex_dataset, loc_int)
         batch_input = loc_tensor.to(device)
         # 500
         number_samples_generated = real_data.shape[0]
-        data_shape = [number_samples_generated, data_dimension, length]
+        if number_samples_generated>350:
+            number_samples_generated=350    #限制生成数据的数量，可以稍微快一点
+        data_shape = [number_samples_generated, data_channels, length]
 
         diffusion_model.eval()
         with torch.no_grad():   #batch_input: 位置向量
             generated_data = diffusion_model(data_shape, batch_input, sampler=sampler_ddpm, verbose=True)
 
         x_generated_list.append(generated_data.cpu())
+        print("real_data shape: ", real_data.shape)
+        print("generated_data shape: ", generated_data.shape)
         x_real_list.append(real_data.cpu())
         loc_vec_list.append(loc_tensor.cpu())
         loc_int_list.append(loc_int_tensor.cpu())

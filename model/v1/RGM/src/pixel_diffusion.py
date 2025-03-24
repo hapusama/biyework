@@ -24,7 +24,6 @@ class PixelDiffusion(pl.LightningModule):
         self.valid_dataset = valid_dataset
         self.lr = lr
         self.batch_size=batch_size
-        
         input_dim = 1
         #主要有前向传播的内容都在这里了
         self.model = DenoisingDiffusionConditionalProcess(input_dim, 
@@ -123,9 +122,10 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
                  loss_fn=F.mse_loss,
                  schedule="cosine",
                  num_timesteps=1000,
+                 signal_feature_dim=4,
                  sampler=None):
         pl.LightningModule.__init__(self)
-
+        self.signal_feature_dim = signal_feature_dim
         self.train_dataset = train_dataset
         self.valid_dataset = valid_dataset
         self.batch_size=batch_size
@@ -135,6 +135,10 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
             'train_loss': [],
             'val_loss': []
         }
+        # input_dim: [2,16]
+        self.cha = channels
+        self.dim=input_dim
+        self.signal_linear = nn.Linear(self.signal_feature_dim, input_dim*channels)
         self.model = DenoisingDiffusionConditionalProcess(input_dim, 
                                                           loc_dim=loc_dim,
                                                           channels=channels, 
@@ -146,6 +150,8 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
     
     def training_step(self, batch_data, batch_idx):   
         signal_vec, location_vec, _ = batch_data
+        signal_vec = self.signal_linear(signal_vec) # 信号向量先经过线性层
+        signal_vec = signal_vec.view(signal_vec.size(0), self.cha, self.dim)
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
         self.log('train_loss', loss, 
                  on_step=True, 
@@ -157,7 +163,8 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
             
     def validation_step(self, batch_data, batch_idx):
         signal_vec, location_vec, _ = batch_data
-
+        signal_vec = self.signal_linear(signal_vec) # 信号向量先经过线性层
+        signal_vec = signal_vec.view(signal_vec.size(0), self.cha, self.dim)
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
         # 修改点2: 验证损失也显示在进度条
         self.log('val_loss', loss, 
