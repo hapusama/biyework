@@ -49,7 +49,7 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
     #loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain.ckpt"
+    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v2.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
     print("\nThe loaded diffusion model: {}\n".format(loaded_fine_tuned_rgm))
@@ -86,9 +86,9 @@ if __name__ == '__main__':
         batch_input = loc_tensor.to(device)
         # 500
         number_samples_generated = real_data.shape[0]
-        if number_samples_generated>350:
-            number_samples_generated=350    #限制生成数据的数量，可以稍微快一点
-        data_shape = [number_samples_generated, data_channels, length]
+        # if number_samples_generated>350:
+        #     number_samples_generated=350    #限制生成数据的数量，可以稍微快一点
+        data_shape = [number_samples_generated, 1, length]
         # data_shape = [number_samples_generated, 1, length]
         diffusion_model.eval()
         with torch.no_grad():   #batch_input: 位置向量

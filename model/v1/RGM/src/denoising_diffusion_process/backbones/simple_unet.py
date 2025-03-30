@@ -156,14 +156,9 @@ class UpBlock(nn.Module):
 
     def forward(self, x):
         _, ch, _ = x.shape
-
-        complex_di = 2
-
-        x = x.reshape((-1, complex_di, ch, self.leng))   # (@ * 2, ch, dim) => (@, 2, ch, dim)
-        x = x.permute(0, 2, 1, 3)                        # (@, 2, ch, dim) => (@, ch, 2, dim) 2是实部虚部
+        # 这里可以改成直成直接用linear升维就好了，没必要
 
         x = self.up(x)                                   # (@, ch, 2, dim) => (@, ch, 2, dim * 2)
-        x = x.permute(0, 2, 1, 3)                        # (@, ch, 2, dim * 2) => (@, 2, ch, dim * 2)
         x = x.reshape((-1, ch, self.leng * 2))           # (@, 2, ch, dim * 2) => (@ * 2, ch, dim * 2)
 
         return x
@@ -181,12 +176,8 @@ class DownBlock(nn.Module):
     def forward(self, x):
 
         _, ch, _ = x.shape
-        complex_di = 2
-        x = x.reshape((-1, complex_di, ch, self.leng))   # (@ * 2, ch, dim) => (@, 2, ch, dim)
-        x = x.permute(0, 2, 1, 3)                        # (@, 2, ch, dim) => (@, ch, 2, dim)
 
         x = self.down(x)                                 # (@, ch, 2, dim) => (@, ch, 2, dim // 2)
-        x = x.permute(0, 2, 1, 3)                        # (@, ch, 2, dim // 2) => (@, 2, ch, dim // 2)
         x = x.reshape((-1, ch, self.leng // 2))          # (@, 2, ch, dim // 2) => (@ * 2, ch, dim // 2)
 
         return x
@@ -242,21 +233,16 @@ class ComplexTimeBlock(nn.Module):
         ) if exists(time_emb_dim) else None
   
         # self.ds_conv = nn.Conv1d(dim, dim, 7, padding=3, groups=dim)
-        self.ds_conv = nn.Conv1d(dim, dim, 1, padding=0)
-        # self.net = nn.Sequential(
-        #     LayerNorm(dim) if norm else nn.Identity(),
-        #     nn.Conv1d(dim, dim_out * mult, 3, padding=1),
-        #     nn.GELU(),
-        #     nn.Conv1d(dim_out * mult, dim_out, 3, padding=1)
-        #     )
+        self.ds_conv = nn.Conv1d(dim, dim, 3, padding=1)
+
         self.net = nn.Sequential(
             LayerNorm(dim) if norm else nn.Identity(),
-            nn.Conv1d(dim, dim_out * mult, 1, padding=0),
+            nn.Conv1d(dim, dim_out * mult, 3, padding=1),
             nn.GELU(),
-            nn.Conv1d(dim_out * mult, dim_out, 1, padding=0)
+            nn.Conv1d(dim_out * mult, dim_out, 3, padding=1)
             )
 
-        self.res_conv = nn.Conv1d(dim, dim_out, 1,padding=0) if dim != dim_out else nn.Identity()
+        self.res_conv = nn.Conv1d(dim, dim_out, 3,padding=1) if dim != dim_out else nn.Identity()
 
 
     def forward(self, x, time_emb=None):
@@ -285,24 +271,24 @@ class UnetComplexBlock(nn.Module):
         super().__init__()
 
         self.leng = dim # input_dim
-        time_dim = dim
-        self.signal_linear= nn.Linear(dim, signal_feature_dim*channels)
+        time_dim = signal_feature_dim
+        self.signal_linear= nn.Linear(dim, signal_feature_dim) #处理feature_X便于后续进行卷积操作
 
         # if dim = 16, [2, 16, 32, 64, 128] 2是channels
-        dims = [channels, *map(lambda m: dim * m, dim_mults)]
+        dims = [channels, *map(lambda m: signal_feature_dim * m, dim_mults)]
 
         # [(2, 16), (16, 32), (32, 64), (64, 128)]每一层的输入输出维度
         in_out = list(zip(dims[:-1], dims[1:]))
 
         # dim * (2 ^ 0), dim * (2 ^ 1), dim * (2 ^ 2), dim * (2 ^ 3): [16, 32, 64, 128] 每一层的特征维度
-        dim_list_sample = [dim * int(math.pow(2, scale))  for scale in range(len(dim_mults))]
+        dim_list_sample = [signal_feature_dim * int(math.pow(2, scale))  for scale in range(len(dim_mults))]
         #，用于处理时间嵌入。它将时间步长嵌入转换为特征向量，以便在模型的不同层中使用。
         #每个时间步长对应一个 16 维的嵌入向量。
         self.time_mlp = nn.Sequential(
-            SinusoidalPositionEmbeddings(dim),
-            nn.Linear(dim, dim * 4),
+            SinusoidalPositionEmbeddings(signal_feature_dim),
+            nn.Linear(signal_feature_dim, signal_feature_dim * 4),
             nn.GELU(),
-            nn.Linear(dim * 4, dim)
+            nn.Linear(signal_feature_dim * 4, signal_feature_dim)
         )
 
         self.class_emb = nn.Sequential(
@@ -352,33 +338,25 @@ class UnetComplexBlock(nn.Module):
         out_dim = channels - 1  # out_dim is channels
 
         self.final_conv = nn.Sequential(
-            ComplexTimeBlock(dim, dim),
-            nn.Conv1d(dim, out_dim, 1),
+            ComplexTimeBlock(signal_feature_dim, signal_feature_dim),
+            nn.Conv1d(signal_feature_dim, out_dim, 1),
+            nn.GELU(),
+            nn.Linear(signal_feature_dim, dim),  # out_dim is channels
         )
 
 
     def forward(self, feature_x, time, location):
-        # feature_x: torch.Size([@, 2, 16])
+        # feature_x: torch.Size([@, 1, 4])
         # time: torch.Size([@])
-        # location: torch.Size([@, 7])
-    
-        # time_2 = torch.cat((time, time), dim=0)                  # (@, ) => (@ * 2, )
+        # location: torch.Size([@, 3])
         time_2=time
-        t = self.time_mlp(time_2)                                # (@ * 2, ) => (@ * 2, dim)
+        t = self.time_mlp(time_2)                                # (@ , ) => (@ , dim)
 
-        class_cond = self.class_emb(location)                    # (@, 7) => (@, dim)
+        class_cond = self.class_emb(location)                    # (@, 3) => (@, dim)
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, dim) => (@, 1, dim)
-        # class_cond = torch.cat((class_cond, class_cond), dim=1)  # (@, 1, dim) => (@, 2, dim)
-        class_cond = class_cond.unsqueeze(dim=1)                 # (@, 2, dim) => (@, 1, 2, dim)
-
-        feature_x = feature_x.unsqueeze(dim=1)                   # (@, 2, dim) => (@, 1, 2, dim)
         
-        x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, 2, dim) => (@, 2, 2, dim)
-        [channle, complex_dim, length] = x.shape[-3: ]           # channel:2 complex_dim:2 length:dim
-
-        x = x.permute(0, 2, 1, 3)                                # channel和complex_dim交换位置 (@, 2, 2, dim) => (@, 2, 2, dim)
-        x = x.reshape((-1, channle, length))                     # (@, 2, 2, dim) => (@ * 2, 2, dim) 512 2 4其中2代表condition or signal
-
+        x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, dim) => (@, 2, dim)
+        x=self.signal_linear(x)                              # (@ , 2, dim) => (@, 2, signal_feature_dim)
         h = []
         for convnext, convnext2, attn, upsample in self.downs:
             x = convnext(x, t)
@@ -400,11 +378,6 @@ class UnetComplexBlock(nn.Module):
 
         # (@ * 2, 16, dim) => (@ * 2, 1, dim): (@ * 2, channel, dim)
         out = self.final_conv(x)
-
-        out = out.reshape((-1, complex_dim, 1, self.leng))    # (@ * 2, 1, dim) => (@, 2, 1, dim)
-
-        out = out.permute(0, 2, 1, 3)                         # (@, 2, 1, dim) => (@, 1, 2, dim)
-        out = out.squeeze(dim=1)                              # (@, 1, 2, dim) => (@, 2, dim)
 
         return out
 

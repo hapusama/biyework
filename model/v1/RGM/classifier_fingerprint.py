@@ -33,7 +33,7 @@ def training(model,
         model.train()  # Set the model to training mode
         total_loss_this_epoch = 0
         for batch_idx, (data_batch_fake, _, _, label_int_batch) in enumerate(dataloader_t):
-            
+            # data_batch_fake: [batch_size, 1, 4]
             data_batch_fake = data_batch_fake.to(device)
             label_int_batch = label_int_batch.to(device)
 

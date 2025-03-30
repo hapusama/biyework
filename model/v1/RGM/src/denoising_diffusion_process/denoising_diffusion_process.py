@@ -24,8 +24,6 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
                  num_timesteps=1000,
                  sampler=None,signal_feature_dim=8):
         super().__init__()
-
-        # Basic Params
         # self.trans_dim = signal_feature_dim #并非输入维度
         self.loc_dim = loc_dim
         self.channels = channels    #并非输入信道数
