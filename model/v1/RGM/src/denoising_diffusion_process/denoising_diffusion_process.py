@@ -15,21 +15,23 @@ from .backbones.simple_unet import *
 class DenoisingDiffusionConditionalProcess(nn.Module):
     
     def __init__(self,
-                 input_dim,
+                 input_dim=4,
                  loc_dim=7,
                  channels=2,
                  dim_mults=(1, 2, 4, 8),
                  loss_fn=F.mse_loss,
                  schedule='linear',
                  num_timesteps=1000,
-                 sampler=None):
+                 sampler=None,signal_feature_dim=8):
         super().__init__()
 
         # Basic Params
+        # self.trans_dim = signal_feature_dim #并非输入维度
+        self.loc_dim = loc_dim
+        self.channels = channels    #并非输入信道数
         self.loss_fn = loss_fn
         self.schedule = schedule
         self.num_timesteps = num_timesteps
-        
         # Forward Process
         self.forward_process = GaussianForwardProcess(num_timesteps=self.num_timesteps, 
                                                       schedule=self.schedule)
@@ -42,7 +44,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         self.model = UnetComplexBlock(input_dim, 
                                       loc_dim=loc_dim,
                                       channels=channels, 
-                                      dim_mults=dim_mults)
+                                      dim_mults=dim_mults,signal_feature_dim=signal_feature_dim)
 
     @torch.no_grad()
     def forward(self,
@@ -97,9 +99,12 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         """        
         # batch size，channel(phase amplitude) input_dim
         # 当h与w不存在时，x.shape = (b, input_dim)
-        b, h, w = x.shape
+        if len(x.shape) == 2:
+            b, h, w = x.shape[0], 1, x.shape[1]
+            x = x.view(b, h, w)
+        b,h,w = x.shape
         device = x.device
-        #随机生成1000以内 256个整数
+        #随机生成numsteps以内 256个不同整数
         t = torch.randint(0, self.forward_process.num_timesteps, (b,), device=device).long()
 
         # call forward function of GaussianForwardProcess Class:  

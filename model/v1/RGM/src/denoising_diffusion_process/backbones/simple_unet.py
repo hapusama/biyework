@@ -281,11 +281,12 @@ class UnetComplexBlock(nn.Module):
                  dim, 
                  loc_dim=7,
                  channels=2,
-                 dim_mults=(1, 2, 4, 8)):
+                 dim_mults=(1, 2, 4, 8),signal_feature_dim=8):
         super().__init__()
 
-        self.leng = dim
+        self.leng = dim # input_dim
         time_dim = dim
+        self.signal_linear= nn.Linear(dim, signal_feature_dim*channels)
 
         # if dim = 16, [2, 16, 32, 64, 128] 2是channels
         dims = [channels, *map(lambda m: dim * m, dim_mults)]
@@ -361,16 +362,17 @@ class UnetComplexBlock(nn.Module):
         # time: torch.Size([@])
         # location: torch.Size([@, 7])
     
-        time_2 = torch.cat((time, time), dim=0)                  # (@, ) => (@ * 2, )
+        # time_2 = torch.cat((time, time), dim=0)                  # (@, ) => (@ * 2, )
+        time_2=time
         t = self.time_mlp(time_2)                                # (@ * 2, ) => (@ * 2, dim)
 
         class_cond = self.class_emb(location)                    # (@, 7) => (@, dim)
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, dim) => (@, 1, dim)
-        class_cond = torch.cat((class_cond, class_cond), dim=1)  # (@, 1, dim) => (@, 2, dim)
+        # class_cond = torch.cat((class_cond, class_cond), dim=1)  # (@, 1, dim) => (@, 2, dim)
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, 2, dim) => (@, 1, 2, dim)
 
         feature_x = feature_x.unsqueeze(dim=1)                   # (@, 2, dim) => (@, 1, 2, dim)
-
+        
         x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, 2, dim) => (@, 2, 2, dim)
         [channle, complex_dim, length] = x.shape[-3: ]           # channel:2 complex_dim:2 length:dim
 

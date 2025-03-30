@@ -47,23 +47,6 @@ class PixelDiffusion(pl.LightningModule):
     def output_T(self, input):
         return input.clip(-1, 1)
 
-
-    # def training_step(self, batch_data, batch_idx):   
-    #     images, _ = batch_data
-    #     loss = self.model.p_loss(self.input_T(images))
-
-    #     self.log('train_loss', loss, on_step=True, on_epoch=True)
-
-    #     return loss
-    
-
-    # def validation_step(self, batch_data, batch_idx):     
-    #     images, _ = batch_data
-    #     loss = self.model.p_loss(self.input_T(images))
-
-    #     self.log('val_loss',loss, on_step=True, on_epoch=True)
-        
-    #     return loss
     def training_step(self, batch_data, batch_idx):   
         signal_vec, location_vec, _ = batch_data
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
@@ -112,9 +95,9 @@ class PixelDiffusion(pl.LightningModule):
 class PixelDiffusionConditional_v2(PixelDiffusion):
     def __init__(self,
                  train_dataset, 
-                 input_dim=16,
-                 loc_dim=7,
-                 channels=2, 
+                 input_dim=4,
+                 loc_dim=3,
+                 channels=1, 
                  dim_mults=(1, 2, 4, 8),
                  valid_dataset=None, 
                  batch_size=1,
@@ -122,7 +105,7 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
                  loss_fn=F.mse_loss,
                  schedule="cosine",
                  num_timesteps=1000,
-                 signal_feature_dim=4,
+                 signal_feature_dim=8,
                  sampler=None):
         pl.LightningModule.__init__(self)
         self.signal_feature_dim = signal_feature_dim
@@ -138,20 +121,20 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
         # input_dim: [2,16]
         self.cha = channels
         self.dim=input_dim
-        self.signal_linear = nn.Linear(self.signal_feature_dim, input_dim*channels)
-        self.model = DenoisingDiffusionConditionalProcess(input_dim, 
+        # self.signal_linear = nn.Linear(self.signal_feature_dim, input_dim*channels)
+        self.model = DenoisingDiffusionConditionalProcess(input_dim=input_dim, 
                                                           loc_dim=loc_dim,
                                                           channels=channels, 
                                                           dim_mults=dim_mults,
                                                           loss_fn=loss_fn, 
                                                           schedule=schedule, 
                                                           num_timesteps=num_timesteps, 
-                                                          sampler=sampler)
+                                                          sampler=sampler,signal_feature_dim=signal_feature_dim)
     
     def training_step(self, batch_data, batch_idx):   
         signal_vec, location_vec, _ = batch_data
-        signal_vec = self.signal_linear(signal_vec) # 信号向量先经过线性层
-        signal_vec = signal_vec.view(signal_vec.size(0), self.cha, self.dim)
+        # signal_vec = self.signal_linear(signal_vec) # 信号向量先经过线性层
+        # signal_vec = signal_vec.view(signal_vec.size(0), self.cha, self.dim)
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
         self.log('train_loss', loss, 
                  on_step=True, 
@@ -163,8 +146,8 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
             
     def validation_step(self, batch_data, batch_idx):
         signal_vec, location_vec, _ = batch_data
-        signal_vec = self.signal_linear(signal_vec) # 信号向量先经过线性层
-        signal_vec = signal_vec.view(signal_vec.size(0), self.cha, self.dim)
+        # signal_vec = self.signal_linear(signal_vec) # 信号向量先经过线性层
+        # signal_vec = signal_vec.view(signal_vec.size(0), self.cha, self.dim)
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
         # 修改点2: 验证损失也显示在进度条
         self.log('val_loss', loss, 
@@ -192,7 +175,7 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
         self.history['train_loss'].append(train_loss)
         self.history['val_loss'].append(val_loss)
         
-        # 实时打印历史（格式与你的截图类似）
+        # 实时打印历史
         print(f"\nEpoch {self.current_epoch:02d} Summary:")
         print(f"Train Loss: {train_loss:.3f} | Val Loss: {val_loss:.3f}")
         print("History:")

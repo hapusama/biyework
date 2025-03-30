@@ -75,6 +75,8 @@ class GaussianForwardProcess(ForwardModel):
 
         assert (t < self.num_timesteps).all()
         b = x_0.shape[0]
+        if len(x_0.shape) == 2:
+            x_0= x_0.view(b, 1, x_0.shape[1])
         mean = x_0 * self.alphas_cumprod_sqrt[t].view(b, 1, 1)
 
         std = self.alphas_one_minus_cumprod_sqrt[t].view(b, 1, 1)

@@ -2,7 +2,7 @@ import os
 import torch
 import torch.nn.functional as F
 from sklearn.preprocessing import MinMaxScaler
-from src.parameter_paser import parse_args_finetune
+from src.parameter_paser import parse_args_finetune,parse_args_pretrain
 from src.dataset import ComplexDatasetLocs, ComplexDataset_real_imagary_v2
 from src.denoising_diffusion_process.samplers.DDPM import DDPM_Sampler
 from src. pixel_diffusion import PixelDiffusionConditional_v2
@@ -16,6 +16,7 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     args = parse_args_finetune()
+    # args= parse_args_pretrain()
     print(f"\nUsing configuration file: {args.config}\n")
 
     input_dir = r"model\v1\input"
@@ -48,7 +49,7 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
     #loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v1.ckpt"
+    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
     print("\nThe loaded diffusion model: {}\n".format(loaded_fine_tuned_rgm))
@@ -68,7 +69,6 @@ if __name__ == '__main__':
                                                                 sampler=sampler_ddpm,signal_feature_dim=signal_feature_dim)
     
     diffusion_model.to(device)
-    #2, 16 2代表的是两根天线 16个complex值（input dim）
     input_vec, _, _ = complex_dataset[0]
     #data_dimension, length = input_vec.shape
     data_dimension=data_channels
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         if number_samples_generated>350:
             number_samples_generated=350    #限制生成数据的数量，可以稍微快一点
         data_shape = [number_samples_generated, data_channels, length]
-
+        # data_shape = [number_samples_generated, 1, length]
         diffusion_model.eval()
         with torch.no_grad():   #batch_input: 位置向量
             generated_data = diffusion_model(data_shape, batch_input, sampler=sampler_ddpm, verbose=True)
