@@ -29,24 +29,17 @@ if __name__ == '__main__':
     # FLOOR3.pth
     data_path_area_1 = data_path = os.path.join(input_dir, args.data_name)
     loaded = torch.load(data_path_area_1)
-    rssi = loaded['rssi']
+    rssi = loaded['rssi']   # shape [24576,4]
     snr = loaded['snr']
     label = loaded['label']
-    
-    # # 对rssi和snr进行缩放到[-1, 1]范围
-    # scaler = MinMaxScaler(feature_range=(-1, 1))
-
-    # # 将一维数据转换为二维 (n_samples, 1)
-    # rssi = np.array(rssi).reshape(-1, 1)
-    # snr = np.array(snr).reshape(-1, 1)
-
-    # # 分别进行缩放
-    # rssi = torch.tensor(scaler.fit_transform(rssi), dtype=torch.float32).flatten()
-    # snr = torch.tensor(scaler.fit_transform(snr), dtype=torch.float32).flatten()
-    
+    rssi_mean= rssi.mean(dim=0)
+    rssi_std= rssi.std(dim=0)	
+    # 归一化 todo：特征太少了 sf因为目前数据全是同一个值根本训不起来
+    normalized=rssi-rssi_mean
+    normalized=normalized/(rssi_std+1e-6)
     location_vector_path = os.path.join(output_dir, args.location_vector_name)
     # 生成一个数据集, 32000个数据，每个数据有rssi, snr, label, location_vector
-    complex_dataset = ComplexDatasetLocs(rssi, 
+    complex_dataset = ComplexDatasetLocs(normalized, 
                                          snr, 
                                          label, 
                                          location_vector_path
@@ -106,7 +99,7 @@ if __name__ == '__main__':
     # 新增早停回调（监控 val_loss）
     early_stop_callback = pl.callbacks.EarlyStopping(
         monitor="val_loss",    # 监控验证损失
-        patience=15,           # 连续10个epoch未改善则停止
+        patience=50,           # 连续10个epoch未改善则停止
         mode="min",            # 监控指标越小越好
         verbose=True           # 打印停止信息
     )

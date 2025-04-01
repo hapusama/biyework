@@ -5,6 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "python - classifier_original.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/model/v1/RGM/classifier_original.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+
+
+        {
             "name": "python - 3_generate_database.py",
             "type": "debugpy",
             "request": "launch",

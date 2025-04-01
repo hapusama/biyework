@@ -22,8 +22,8 @@ num_locs: 37
 input_dim: 4
 hidden_dim: 128
 n_layers: 3
-dropout_pra: 0.1
-learning_rate: 0.0001
+dropout_pra: 0.3
+learning_rate: 0.00005
 num_epochs: 200
 batch_size: 256
 

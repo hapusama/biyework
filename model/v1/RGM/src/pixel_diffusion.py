@@ -34,22 +34,23 @@ class PixelDiffusion(pl.LightningModule):
                                                           num_timesteps=num_timesteps, 
                                                           sampler=sampler)
 
-
+    # todo: clip的范围改成3看看，以及去掉会怎么样
     @torch.no_grad()
     def forward(self, *args, **kwargs):
-        return self.output_T(self.model(*args, **kwargs))
-    
+        # return self.output_T(self.model(*args, **kwargs))
+        return self.model(*args, **kwargs)
 
     def input_T(self, input):
-        return input.clip(-1, 1)
+        return input.clip(-2, 2)
     
 
     def output_T(self, input):
-        return input.clip(-1, 1)
+        return input.clip(-2, 2)
 
     def training_step(self, batch_data, batch_idx):   
         signal_vec, location_vec, _ = batch_data
-        loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        # loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        loss = self.model.p_loss(signal_vec, location_vec)
         self.log('train_loss', loss, 
                  on_step=True, 
                  on_epoch=True, 
@@ -61,7 +62,8 @@ class PixelDiffusion(pl.LightningModule):
     def validation_step(self, batch_data, batch_idx):
         signal_vec, location_vec, _ = batch_data
 
-        loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        # loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        loss = self.model.p_loss(signal_vec, location_vec)
         # 修改点2: 验证损失也显示在进度条
         self.log('val_loss', loss, 
                  on_epoch=True,   # 验证通常只关注epoch平均
@@ -135,7 +137,8 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
         signal_vec, location_vec, _ = batch_data
         # signal_vec = self.signal_linear(signal_vec) # 信号向量先经过线性层
         # signal_vec = signal_vec.view(signal_vec.size(0), self.cha, self.dim)
-        loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        # loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        loss = self.model.p_loss(signal_vec, location_vec)
         self.log('train_loss', loss, 
                  on_step=True, 
                  on_epoch=True, 
@@ -147,8 +150,8 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
     def validation_step(self, batch_data, batch_idx):
         signal_vec, location_vec, _ = batch_data
         # signal_vec = self.signal_linear(signal_vec) # 信号向量先经过线性层
-        # signal_vec = signal_vec.view(signal_vec.size(0), self.cha, self.dim)
-        loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        # loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        loss = self.model.p_loss(signal_vec, location_vec)
         # 修改点2: 验证损失也显示在进度条
         self.log('val_loss', loss, 
                  on_epoch=True,   # 验证通常只关注epoch平均

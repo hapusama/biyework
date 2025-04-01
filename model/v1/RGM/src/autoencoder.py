@@ -74,34 +74,41 @@ class LocationClassifier(nn.Module):
 
         self.n_locs = n_locs
 
+        # self.encoder = nn.Sequential(
+        #     m_Linear(input_dim, hidden_dim//2),  # input size same as input data
+        #     nn.Dropout(p=dropout_pra),
+        #     nn.GELU(),
+        #     m_Linear(hidden_dim//2, hidden_dim),
+        #     nn.Dropout(p=dropout_pra),
+        #     nn.GELU(),
+        #     *[m_Linear(hidden_dim, hidden_dim), nn.GELU()] * n_layers,
+        #     m_Linear(hidden_dim, hidden_dim),
+        # )
         self.encoder = nn.Sequential(
-            m_Linear(input_dim, hidden_dim//2),  # input size same as input data
-            nn.Dropout(p=dropout_pra),
-            nn.GELU(),
-            m_Linear(hidden_dim//2, hidden_dim),
-            nn.Dropout(p=dropout_pra),
-            nn.GELU(),
-            *[m_Linear(hidden_dim, hidden_dim), nn.GELU()] * n_layers,
-            m_Linear(hidden_dim, hidden_dim),
-        )
-
+                    m_Linear(input_dim, hidden_dim//4),  # input size same as input data
+                    nn.Dropout(p=dropout_pra),
+                    nn.GELU(),
+                    m_Linear(hidden_dim//4, hidden_dim//2),
+                    nn.Dropout(p=dropout_pra),
+                    nn.GELU(),
+                    m_Linear(hidden_dim//2, hidden_dim),
+                    nn.Dropout(p=dropout_pra),
+                    nn.GELU(),
+                    *[m_Linear(hidden_dim, hidden_dim), nn.GELU()] * n_layers,
+                    m_Linear(hidden_dim, hidden_dim),
+                )
         self.fc_out = nn.Linear(hidden_dim, self.n_locs)
 
 
     def forward(self, x):
         encoded = self.encoder(x)                             
-
-        encoded_abs = self.compute_abs(encoded)
-
-        output = self.fc_out(encoded_abs)
-
+        output = self.fc_out(encoded)
         return output
     
 
     @staticmethod
     def compute_abs(x):
-        real_part = x[:, 0, :] ** 2
-        imag_part = x[:, 1, :] ** 2
-        abs_value = torch.sqrt(real_part + imag_part)
-        return abs_value
+        real_part = x[:, 0, :]
+        # abs_value = torch.sqrt(real_part)
+        return real_part
 

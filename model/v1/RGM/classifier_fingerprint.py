@@ -1,5 +1,6 @@
 import torch.optim as optim
 import torch.nn as nn
+from torch import squeeze
 from sklearn.metrics import precision_score, recall_score
 import os
 import torch
@@ -8,6 +9,7 @@ from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 from src.dataset import generate_three_loader_v3
 from src.parameter_paser import parse_args_finetune
 from src.autoencoder import LocationClassifier
+from torch import unsqueeze
 
 
 def loss_function(label_batch, label_pred):
@@ -33,13 +35,14 @@ def training(model,
         model.train()  # Set the model to training mode
         total_loss_this_epoch = 0
         for batch_idx, (data_batch_fake, _, _, label_int_batch) in enumerate(dataloader_t):
-            # data_batch_fake: [batch_size, 1, 4]
+            # data_batch_fake: [batch_size, 1, 4] 指纹数据里面可能有误，如果有误 修改ddpm
             data_batch_fake = data_batch_fake.to(device)
             label_int_batch = label_int_batch.to(device)
 
             optimizer.zero_grad()
 
             label_pred_onehot = model(data_batch_fake)
+            label_pred_onehot=squeeze(label_pred_onehot, dim=1)  # [@, n_class]
             loss = loss_function(label_int_batch, label_pred_onehot)
             loss.backward()
             optimizer.step()
@@ -60,9 +63,10 @@ def training(model,
         with torch.no_grad():
             for batch_idx, (data_batch_fake, data_batch_real, _, label_int_batch) in enumerate(valid_data_loader_t):
 
-                data_batch_fake = data_batch_fake.to(device)
-
-                label_pred_onehot = model(data_batch_fake).cpu()             # [@, n_class]
+                data_batch_real=unsqueeze(data_batch_real, dim=1)  # [@, 1, 4]                
+                data_batch_real= data_batch_real.to(device)    
+                label_pred_onehot = model(data_batch_real).cpu() 
+                label_pred_onehot=squeeze(label_pred_onehot, dim=1)  # [@, n_class]
                 label_pred = torch.argmax(label_pred_onehot, dim=-1)    # [@]
 
                 correct_count += (label_pred == label_int_batch).sum().item()
@@ -115,7 +119,7 @@ def testing(model,
         # only one iteration
         for _, (_, data_batch_real, _, label_int_batch) in enumerate(dataloader_t):  # for all test samples
 
-        
+            data_batch_real=unsqueeze(data_batch_real, dim=1)  # [@, 1, 4]
             data_batch_real = data_batch_real.to(device)
 
             label_pred_onehot = model(data_batch_real).cpu()         # [@, n_class]
@@ -170,7 +174,6 @@ if __name__ == '__main__':
                                                             batch_size_t, 
                                                             frac_for_valid, 
                                                             frac_for_test)
-    # 打印train_dataloader第15360个batch的数据
     train_data_list = list(train_loader)
     device_m = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

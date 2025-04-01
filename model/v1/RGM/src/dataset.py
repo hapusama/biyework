@@ -26,15 +26,15 @@ class ComplexDataset(Dataset):
 
     def __getitem__(self, idx):
         amplitude = self.amplitude_list[idx]
-        phase = self.phase_list[idx]
+        # phase = self.phase_list[idx]
         label = self.labels[idx]
-        real = amplitude * torch.cos(phase)
-        imaginary = amplitude * torch.sin(phase)
+        # real = amplitude * torch.cos(phase)
+        # imaginary = amplitude * torch.sin(phase)
         
         # stacks the real and imaginary tensors along a new dimension, 
         # resulting in a new tensor with shape (2, 16).
-        complex_number = torch.stack((real, imaginary), dim=0)
-        return complex_number, label
+        # complex_number = torch.stack((real, imaginary), dim=0)
+        return amplitude, label
 
 
 class ComplexDatasetLocs(Dataset):
