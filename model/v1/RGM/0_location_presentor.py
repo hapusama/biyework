@@ -29,7 +29,7 @@ if __name__ == '__main__':
         # 写入 CSV 文件头
         in_file.write("location_id,x,y,distance,idx\n")
         # 遍历 label_coordinate.csv 文件，计算节点和网关之间的方向向量
-        df = pd.read_csv(r"model\v1\input\label_coordinate.csv")
+        df = pd.read_csv(r"model\v1\input\label_coordinate_v2.csv")
         idx = 0
         for index, row in df.iterrows():
             node_id = row['id']

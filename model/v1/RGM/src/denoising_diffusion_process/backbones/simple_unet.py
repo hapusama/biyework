@@ -351,10 +351,9 @@ class UnetComplexBlock(nn.Module):
         # location: torch.Size([@, 3])
         time_2=time
         t = self.time_mlp(time_2)                                # (@ , ) => (@ , featuren_dim)
-
         class_cond = self.class_emb(location)                    # (@, 3) => (@, feature_dim)
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, dim) => (@, 1, feature_dim)
-        feature_x=self.signal_linear(feature_x)                                  # (@ , 1, dim) => (@, 1, signal_feature_dim)
+        feature_x=self.signal_linear(feature_x)                  # (@ , 1, dim) => (@, 1, signal_feature_dim)
         x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, signal_feature_dim) => (@, 2, signal_feature_dim)
                                                     
         h = []
