@@ -1,16 +1,15 @@
-import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import os
+from src.dataset import generate_three_loader_v3
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from torch.utils.data import DataLoader, TensorDataset
 # 模型配置
 batch_size = 256
+input_dim=6
+num_classes=19
 # 批次的大小
-input_data_pth=r'model\v1\input\FLOOR3_v2.csv'
+input_data_pth=r'model\v1\output\floor3_v3.pth'
 lr = 1e-3
 # 优化器的学习率
 valid_size = 0.2
@@ -48,38 +47,12 @@ class LocationClassifier(nn.Module):
         return self.fc(x)
         
 if "__main__"==__name__:
-    df=pd.read_csv(input_data_pth)
-    features = ['rssi', 'average_rssi', 'rssi_variance', "average_snr",'snr','sf', 'tp']
-    X = df[features].values
-    y = df['location_id'].values
-    # 2. 数据预处理
-    # 标准化特征
-    scaler = StandardScaler()
-    X = scaler.fit_transform(X)
-    # 将标签转换为整数索引
-    label_encoder = LabelEncoder()
-    y = label_encoder.fit_transform(y)
-    # 划分训练集和测试集
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=valid_size, random_state=42)
-    # 转换为 PyTorch 张量
-    X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
-    y_train_tensor = torch.tensor(y_train, dtype=torch.long)
-    X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
-    y_test_tensor = torch.tensor(y_test, dtype=torch.long)
-    X_valid_tensor = torch.tensor(X_valid, dtype=torch.float32)
-    y_valid_tensor = torch.tensor(y_valid, dtype=torch.long)
-    # 创建数据加载器
-    train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-    test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
-    train_loader = DataLoader(train_dataset, batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size, shuffle=False)
-    valid_dataset = TensorDataset(X_valid_tensor, y_valid_tensor)
-    valid_loader = DataLoader(valid_dataset, batch_size, shuffle=True)
-
+    complex_dataset_generated_real=torch.load(input_data_pth)
+    train_loader,valid_loader,test_loader=generate_three_loader_v3(complex_dataset_generated_real, 
+                                                                   batch_size, 
+                                                                   valid_size, 
+                                                                   test_size)
     # 初始化模型
-    input_dim = X_train.shape[1]
-    num_classes = len(np.unique(y))
     model = LocationClassifier(input_dim, num_classes)
     # 4. 定义损失函数和优化器
     criterion = nn.CrossEntropyLoss()
@@ -94,30 +67,26 @@ if "__main__"==__name__:
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0
-        with tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch") as pbar:
-            for X_batch, y_batch in pbar:
-                X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-                
-                # 前向传播
-                outputs = model(X_batch)
-                loss = criterion(outputs, y_batch)
-
-                # 反向传播和优化
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                total_loss += loss.item()
-                
-                # 更新进度条描述
-                pbar.set_postfix(loss=total_loss / len(train_loader))
+        for batch_idx,(data_batch_fake,_,_,label_int_batch) in enumerate(tqdm(train_loader)):
+            data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
+            data_batch_fake = data_batch_fake.squeeze(1)
+            optimizer.zero_grad()
+            outputs = model(data_batch_fake)
+            loss = criterion(outputs, label_int_batch)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
         model.eval()
         valid_loss = 0
         with torch.no_grad():
-            for X_batch,y_batch in valid_loader:
-                X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-                outputs = model(X_batch)
-                loss = criterion(outputs, y_batch)
+            for batch_idx,(data_batch_fake,data_batch_real,_,label_int_batch) in enumerate(valid_loader):
+                data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
+                data_batch_fake = data_batch_fake.squeeze(1)
+                # data_batch_fake = data_batch_fake.view(-1, input_dim)
+                outputs = model(data_batch_fake)
+                loss = criterion(outputs, label_int_batch)
                 valid_loss += loss.item()
+                
         valid_loss /= len(valid_loader)
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(train_loader):.4f},Validation Loss: {valid_loss:.4f}")
         # 更新学习率
@@ -131,13 +100,14 @@ if "__main__"==__name__:
     correct = 0
     total = 0
     with torch.no_grad():
-        for X_batch, y_batch in test_loader:
-            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-            outputs = model(X_batch)
-            _, predicted = torch.max(outputs, 1)
-            total += y_batch.size(0)
-            correct += (predicted == y_batch).sum().item()
-
+        for batch_idx,(_,data_batch_real,_,label_int_batch) in enumerate(test_loader):
+            data_batch_real, label_int_batch = data_batch_real.to(device), label_int_batch.to(device)
+            data_batch_real = data_batch_real.squeeze(1)
+            # data_batch_real = data_batch_real.view(-1, input_dim)
+            outputs = model(data_batch_real)
+            _, predicted = torch.max(outputs.data, 1)
+            total += label_int_batch.size(0)
+            correct += (predicted == label_int_batch).sum().item()
     accuracy = correct / total
     print(f"Test Accuracy: {accuracy:.4f}")
 

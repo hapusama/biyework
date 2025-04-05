@@ -44,6 +44,51 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
                                       channels=channels, 
                                       dim_mults=dim_mults,signal_feature_dim=signal_feature_dim)
 
+    # @torch.no_grad()
+    # def forward(self,
+    #             data_shape,
+    #             condition,
+    #             sampler=None,
+    #             verbose=False):
+    #     """
+    #         forward() function triggers a complete inference cycle
+
+    #         A custom sampler can be provided as an argument!
+    #     """
+
+    #     # read dimensions
+    #     # b, c, h, w = x.shape
+    #     b, h, w = data_shape
+
+    #     device = next(self.model.parameters()).device
+    #     condition = condition.to(device)
+        
+    #     # select sampler
+    #     if sampler is None:
+    #         sampler = self.sampler
+            
+    #     else:
+    #         sampler.to(device)
+
+    #     # time steps list
+    #     num_timesteps = sampler.num_timesteps 
+    #     it = reversed(range(0, num_timesteps))
+        
+    #     # x_t = torch.randn([b, c, h, w], device=device)
+    #     x_t = torch.randn([b, h, w], device=device)
+
+    #     for i in tqdm(it, desc='diffusion sampling', total=num_timesteps) if verbose else it:
+
+    #         t = torch.full((b,), i, device=device, dtype=torch.long)
+    #         z_t = self.model(x_t, t, condition)   # prediction of noise
+
+    #         # call forward function of DDPM_Sampler Class: 
+    #         # Given approximation of noise z_t in x_t predict x_(t-1)
+    #         # prediction of next state
+    #         x_t = sampler(x_t, t, z_t)
+            
+    #     print(x_t.shape)
+    #     return x_t
     @torch.no_grad()
     def forward(self,
                 data_shape,
@@ -59,7 +104,6 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         # read dimensions
         # b, c, h, w = x.shape
         b, h, w = data_shape
-
         device = next(self.model.parameters()).device
         condition = condition.to(device)
         

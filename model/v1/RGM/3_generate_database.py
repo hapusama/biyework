@@ -79,6 +79,7 @@ if __name__ == '__main__':
     x_real_list = []
     loc_vec_list = []
     loc_int_list = []
+    # todo: sf和tp或许作为condition输入会比较合理
     # generate data for each location x全都代表csi
     for loc_int in range(num_locs):
         print("\nGenerating CSI data for Location ID: {}\n".format(loc_int))
@@ -87,7 +88,12 @@ if __name__ == '__main__':
         batch_input = loc_tensor.to(device)
         # 500
         number_samples_generated = real_data.shape[0]
-        #todo：限制生成数据的数量，可以稍微快一点
+        if number_samples_generated > 500:
+            number_samples_generated = 500
+            batch_input = batch_input[:number_samples_generated]
+            real_data= real_data[:number_samples_generated]
+            loc_tensor=loc_tensor[:number_samples_generated]
+            loc_int_tensor=loc_int_tensor[:number_samples_generated]
         data_shape = [number_samples_generated, 1, length]  # todo：把channel写入超参数
         diffusion_model.eval()
         with torch.no_grad():   #batch_input: 位置向量
