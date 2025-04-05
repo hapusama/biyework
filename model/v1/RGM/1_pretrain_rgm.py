@@ -25,21 +25,17 @@ if __name__ == '__main__':
 
     frac_for_valid = args.frac_for_valid
     frac_for_test = args.frac_for_test
-
+    # todo: 归一化 想办法把特征值缩小到-1到1之间
     # FLOOR3.pth
     data_path_area_1 = data_path = os.path.join(input_dir, args.data_name)
     loaded = torch.load(data_path_area_1)
-    rssi = loaded['rssi']   # shape [24576,4]
+    rssi = loaded['rssi']   # shape [24576,7]
     snr = loaded['snr']
     label = loaded['label']
-    rssi_mean= rssi.mean(dim=0)
-    rssi_std= rssi.std(dim=0)	
-    # 归一化 todo：特征太少了 sf因为目前数据全是同一个值根本训不起来
-    normalized=rssi-rssi_mean
-    normalized=normalized/(rssi_std+1e-6)
+    
     location_vector_path = os.path.join(output_dir, args.location_vector_name)
     # 生成一个数据集, 32000个数据，每个数据有rssi, snr, label, location_vector
-    complex_dataset = ComplexDatasetLocs(normalized, 
+    complex_dataset = ComplexDatasetLocs(rssi, 
                                          snr, 
                                          label, 
                                          location_vector_path
@@ -99,7 +95,7 @@ if __name__ == '__main__':
     # 新增早停回调（监控 val_loss）
     early_stop_callback = pl.callbacks.EarlyStopping(
         monitor="val_loss",    # 监控验证损失
-        patience=50,           # 连续10个epoch未改善则停止
+        patience=25,           # 连续10个epoch未改善则停止
         mode="min",            # 监控指标越小越好
         verbose=True           # 打印停止信息
     )

@@ -16,7 +16,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
     
     def __init__(self,
                  input_dim=4,
-                 loc_dim=7,
+                 loc_dim=3,
                  channels=2,
                  dim_mults=(1, 2, 4, 8),
                  loss_fn=F.mse_loss,

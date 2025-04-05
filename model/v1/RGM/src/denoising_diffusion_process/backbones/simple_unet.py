@@ -271,34 +271,34 @@ class UnetComplexBlock(nn.Module):
         super().__init__()
 
         self.leng = dim # input_dim
-        time_dim = signal_feature_dim
-        self.signal_linear= nn.Linear(dim, signal_feature_dim) #处理feature_X便于后续进行卷积操作
+        time_dim = dim
+        # self.signal_linear= nn.Linear(dim, signal_feature_dim) #处理feature_X便于后续进行卷积操作
 
         # if dim = 8, [2, 8, 16,32, 64] 2是channels
-        dims = [channels, *map(lambda m: signal_feature_dim * m, dim_mults)]
+        dims = [channels, *map(lambda m: dim * m, dim_mults)]
 
         # [(2, 8), (8, 16), (16, 32), (32, 64)]每一层的输入输出维度
         in_out = list(zip(dims[:-1], dims[1:]))
 
         # dim * (2 ^ 0), dim * (2 ^ 1), dim * (2 ^ 2), dim * (2 ^ 3): [16, 32, 64, 128] 每一层的特征维度[8, 16, 32, 64]
-        dim_list_sample = [signal_feature_dim * int(math.pow(2, scale))  for scale in range(len(dim_mults))]
+        dim_list_sample = [dim * int(math.pow(2, scale))  for scale in range(len(dim_mults))]
         #，用于处理时间嵌入。它将时间步长嵌入转换为特征向量，以便在模型的不同层中使用。
         #每个时间步长对应一个 16 维的嵌入向量。
         self.time_mlp = nn.Sequential(
-            SinusoidalPositionEmbeddings(signal_feature_dim),
-            nn.Linear(signal_feature_dim, signal_feature_dim * 4),
+            SinusoidalPositionEmbeddings(dim),
+            nn.Linear(dim, dim * 4),
             nn.GELU(),
-            nn.Linear(signal_feature_dim * 4, signal_feature_dim)
+            nn.Linear(dim * 4, dim)
         )
 
         self.class_emb = nn.Sequential(
-            nn.Linear(loc_dim, signal_feature_dim), 
+            nn.Linear(loc_dim, dim), 
             nn.GELU(),
-            nn.Linear(signal_feature_dim, signal_feature_dim * 4),
+            nn.Linear(dim, dim * 4),
             nn.GELU(),
-            nn.Linear(signal_feature_dim * 4, signal_feature_dim * 4),
+            nn.Linear(dim * 4, dim * 4),
             nn.GELU(),
-            nn.Linear(signal_feature_dim * 4, signal_feature_dim),
+            nn.Linear(dim * 4, dim),
         )
 
         self.downs = nn.ModuleList([])
@@ -338,10 +338,10 @@ class UnetComplexBlock(nn.Module):
         out_dim = channels - 1  # out_dim is channels
 
         self.final_conv = nn.Sequential(
-            ComplexTimeBlock(signal_feature_dim, signal_feature_dim),
-            nn.Conv1d(signal_feature_dim, out_dim, 1),
+            ComplexTimeBlock(dim, dim),
+            nn.Conv1d(dim, out_dim, 1),
             nn.GELU(),
-            nn.Linear(signal_feature_dim, dim),  # out_dim is channels
+            nn.Linear(dim, dim),  # out_dim is channels
         )
 
 
@@ -353,7 +353,7 @@ class UnetComplexBlock(nn.Module):
         t = self.time_mlp(time_2)                                # (@ , ) => (@ , featuren_dim)
         class_cond = self.class_emb(location)                    # (@, 3) => (@, feature_dim)
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, dim) => (@, 1, feature_dim)
-        feature_x=self.signal_linear(feature_x)                  # (@ , 1, dim) => (@, 1, signal_feature_dim)
+        # feature_x=self.signal_linear(feature_x)                  # (@ , 1, dim) => (@, 1, signal_feature_dim)
         x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, signal_feature_dim) => (@, 2, signal_feature_dim)
                                                     
         h = []

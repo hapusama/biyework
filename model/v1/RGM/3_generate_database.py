@@ -49,7 +49,7 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
     #loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v2.ckpt"
+    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v3.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\1_pretrained_rgm.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
@@ -85,12 +85,6 @@ if __name__ == '__main__':
         # real_data[0]: [4,]
         real_data, loc_tensor, loc_int_tensor = get_features_by_label_v4(complex_dataset, loc_int)
         batch_input = loc_tensor.to(device)
-        #todo: 给数据加点噪声
-        real_mean= real_data.mean(dim=0)
-        real_std= real_data.std(dim=0)
-        # 归一化 todo：特征太少了 sf因为目前数据全是同一个值根本训不起来
-        real_data=real_data-real_mean
-        real_data=real_data/(real_std+1e-6)
         # 500
         number_samples_generated = real_data.shape[0]
         #todo：限制生成数据的数量，可以稍微快一点
