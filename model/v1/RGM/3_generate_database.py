@@ -48,8 +48,8 @@ if __name__ == '__main__':
     data_channels = args.data_channels
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
-    #loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v4.ckpt"
+    loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
+    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v5.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\1_pretrained_rgm.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
@@ -89,12 +89,12 @@ if __name__ == '__main__':
         # 500
         number_samples_generated = real_data.shape[0]
         
-        # if number_samples_generated > 500:    # 限制生成数量，提高生成过程
-        #     number_samples_generated = 50
-        #     batch_input = batch_input[:number_samples_generated]
-        #     real_data= real_data[:number_samples_generated]
-        #     loc_tensor=loc_tensor[:number_samples_generated]
-        #     loc_int_tensor=loc_int_tensor[:number_samples_generated]
+        if number_samples_generated > 500:    # 限制生成数量，提高生成过程
+            number_samples_generated = 50
+            batch_input = batch_input[:number_samples_generated]
+            real_data= real_data[:number_samples_generated]
+            loc_tensor=loc_tensor[:number_samples_generated]
+            loc_int_tensor=loc_int_tensor[:number_samples_generated]
         data_shape = [number_samples_generated, 1, length]  # todo：把channel写入yml
         diffusion_model.eval()
         with torch.no_grad():   #batch_input: 位置向量

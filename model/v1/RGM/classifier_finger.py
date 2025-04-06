@@ -6,7 +6,7 @@ from src.dataset import generate_three_loader_v3
 from sklearn.model_selection import train_test_split
 # 模型配置
 batch_size = 256
-input_dim=6
+input_dim=10
 # mode='generate'
 mode='original'
 num_classes=19
