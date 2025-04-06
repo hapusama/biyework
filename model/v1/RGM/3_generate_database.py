@@ -49,7 +49,7 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
     #loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v3.ckpt"
+    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v4.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\1_pretrained_rgm.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
@@ -88,17 +88,22 @@ if __name__ == '__main__':
         batch_input = loc_tensor.to(device)
         # 500
         number_samples_generated = real_data.shape[0]
-        if number_samples_generated > 500:
-            number_samples_generated = 500
-            batch_input = batch_input[:number_samples_generated]
-            real_data= real_data[:number_samples_generated]
-            loc_tensor=loc_tensor[:number_samples_generated]
-            loc_int_tensor=loc_int_tensor[:number_samples_generated]
-        data_shape = [number_samples_generated, 1, length]  # todo：把channel写入超参数
+        
+        # if number_samples_generated > 500:    # 限制生成数量，提高生成过程
+        #     number_samples_generated = 50
+        #     batch_input = batch_input[:number_samples_generated]
+        #     real_data= real_data[:number_samples_generated]
+        #     loc_tensor=loc_tensor[:number_samples_generated]
+        #     loc_int_tensor=loc_int_tensor[:number_samples_generated]
+        data_shape = [number_samples_generated, 1, length]  # todo：把channel写入yml
         diffusion_model.eval()
         with torch.no_grad():   #batch_input: 位置向量
             generated_data = diffusion_model(data_shape, batch_input, sampler=sampler_ddpm, verbose=True)
-
+        selected_feature=batch_input[:,-2:]
+        selected_feature=selected_feature.unsqueeze(1)  
+        loc_tensor_last2=loc_tensor[:,-2:]
+        generated_data=torch.cat((generated_data, selected_feature), dim=2)
+        real_data = torch.cat((real_data, loc_tensor_last2), dim=1)
         x_generated_list.append(generated_data.cpu())
         print("generated_data shape: ", generated_data.shape)
         print("generated_data : ", generated_data)

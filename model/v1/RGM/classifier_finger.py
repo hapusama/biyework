@@ -7,14 +7,16 @@ from sklearn.model_selection import train_test_split
 # 模型配置
 batch_size = 256
 input_dim=6
+# mode='generate'
+mode='original'
 num_classes=19
 # 批次的大小
 input_data_pth=r'model\v1\output\floor3_v3.pth'
-lr = 1e-3
+lr = 1e-2
 # 优化器的学习率
 valid_size = 0.2
 test_size=0.1
-num_epochs = 300
+num_epochs = 200
 new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
 model_path_train=r'model\v1\output\classifier_ori.pth'
 from tqdm import tqdm
@@ -59,40 +61,73 @@ if "__main__"==__name__:
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # 应用学习率下降策略
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=15, factor=0.1, verbose=True)
+    # 设置随机数种子
 
     # 5. 训练模型
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
-
-    for epoch in range(num_epochs):
-        model.train()
-        total_loss = 0
-        for batch_idx,(data_batch_fake,_,_,label_int_batch) in enumerate(tqdm(train_loader)):
-            data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
-            data_batch_fake = data_batch_fake.squeeze(1)
-            optimizer.zero_grad()
-            outputs = model(data_batch_fake)
-            loss = criterion(outputs, label_int_batch)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-        model.eval()
-        valid_loss = 0
-        with torch.no_grad():
-            for batch_idx,(data_batch_fake,data_batch_real,_,label_int_batch) in enumerate(valid_loader):
+    if mode=='generate':
+        for epoch in range(num_epochs):
+            model.train()
+            total_loss = 0
+            for batch_idx,(data_batch_fake,_,_,label_int_batch) in enumerate(tqdm(train_loader)):
                 data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
                 data_batch_fake = data_batch_fake.squeeze(1)
-                # data_batch_fake = data_batch_fake.view(-1, input_dim)
+                optimizer.zero_grad()
                 outputs = model(data_batch_fake)
                 loss = criterion(outputs, label_int_batch)
-                valid_loss += loss.item()
-                
-        valid_loss /= len(valid_loader)
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(train_loader):.4f},Validation Loss: {valid_loss:.4f}")
-        # 更新学习率
-        scheduler.step(valid_loss)
-        # 如果验证损失没有改善，则保存当前模型
-        torch.save(model.state_dict(), model_path_train)
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
+            model.eval()
+            valid_loss = 0
+            with torch.no_grad():
+                for batch_idx,(data_batch_fake,data_batch_real,_,label_int_batch) in enumerate(valid_loader):
+                    data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
+                    data_batch_fake = data_batch_fake.squeeze(1)
+                    # data_batch_fake = data_batch_fake.view(-1, input_dim)
+                    outputs = model(data_batch_fake)
+                    loss = criterion(outputs, label_int_batch)
+                    valid_loss += loss.item()
+                    
+            valid_loss /= len(valid_loader)
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(train_loader):.4f},Validation Loss: {valid_loss:.4f}")
+            # 更新学习率
+            scheduler.step(valid_loss)
+            # 如果验证损失没有改善，则保存当前模型
+            torch.save(model.state_dict(), model_path_train)
+    
+    if mode=='original':
+        for epoch in range(num_epochs):
+            model.train()
+            total_loss = 0
+            for batch_idx,(data_batch_fake,data_batch_real,_,label_int_batch) in enumerate(tqdm(train_loader)):
+                data_batch_real, label_int_batch = data_batch_real.to(device), label_int_batch.to(device)
+                data_batch_real = data_batch_real.squeeze(1)
+                optimizer.zero_grad()
+                outputs = model(data_batch_real)
+                loss = criterion(outputs, label_int_batch)
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
+            model.eval()
+            valid_loss = 0
+            with torch.no_grad():
+                for batch_idx,(data_batch_fake,data_batch_real,_,label_int_batch) in enumerate(valid_loader):
+                    data_batch_real, label_int_batch = data_batch_real.to(device), label_int_batch.to(device)
+                    data_batch_real = data_batch_real.squeeze(1)
+                    # data_batch_fake = data_batch_fake.view(-1, input_dim)
+                    outputs = model(data_batch_real)
+                    loss = criterion(outputs, label_int_batch)
+                    valid_loss += loss.item()
+                    
+            valid_loss /= len(valid_loader)
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(train_loader):.4f},Validation Loss: {valid_loss:.4f}")
+            # 更新学习率
+            scheduler.step(valid_loss)
+            # 如果验证损失没有改善，则保存当前模型
+            torch.save(model.state_dict(), model_path_train)
+   
     # 加载模型
     model.load_state_dict(torch.load(model_path_train))
     # 6. 测试模型

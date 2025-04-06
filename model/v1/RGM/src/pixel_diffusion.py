@@ -34,7 +34,6 @@ class PixelDiffusion(pl.LightningModule):
                                                           num_timesteps=num_timesteps, 
                                                           sampler=sampler)
 
-    # todo: clip的范围改成3看看，以及去掉会怎么样
     @torch.no_grad()
     def forward(self, *args, **kwargs):
         return self.output_T(self.model(*args, **kwargs))

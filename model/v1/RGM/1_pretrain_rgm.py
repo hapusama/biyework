@@ -25,7 +25,6 @@ if __name__ == '__main__':
 
     frac_for_valid = args.frac_for_valid
     frac_for_test = args.frac_for_test
-    # todo: 归一化 想办法把特征值缩小到-1到1之间
     # FLOOR3.pth
     data_path_area_1 = data_path = os.path.join(input_dir, args.data_name)
     loaded = torch.load(data_path_area_1)

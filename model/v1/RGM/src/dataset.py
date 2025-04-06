@@ -93,11 +93,9 @@ class ComplexDatasetLocs(Dataset):
         #     raise ValueError(f"datasetloc part is None at index {idx}.")
         # complex_number = torch.stack((real, imaginary), dim=0)
         label_feature = self.label_features.get(label.item())
-         # 确保返回的值都是一维张量
-        # if len(complex_number.shape) == 1:
-        #     # 将shape变为（2，1）
-        #     complex_number = complex_number.unsqueeze(1)
-
+        # 将label_feature和snr cat在一起
+        # 将label_feature和snr cat在一起
+        label_feature = torch.cat((label_feature, snr), dim=0)        # 确保返回的值都是一维张量
         return rssi, label_feature, label
 
 
