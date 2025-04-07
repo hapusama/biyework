@@ -231,9 +231,9 @@ class ComplexTimeBlock(nn.Module):
             nn.GELU(),
             nn.Linear(time_emb_dim, dim)
         ) if exists(time_emb_dim) else None
-  
-        # self.ds_conv = nn.Conv1d(dim, dim, 7, padding=3, groups=dim)
-        self.ds_conv = nn.Conv1d(dim, dim, 3, padding=1)
+        # todo group参数在这个模型里有什么作用
+        self.ds_conv = nn.Conv1d(dim, dim, 7, padding=3,groups=dim)
+        # self.ds_conv = nn.Conv1d(dim, dim, 3, padding=1,groups=dim)
 
         self.net = nn.Sequential(
             LayerNorm(dim) if norm else nn.Identity(),
@@ -355,7 +355,7 @@ class UnetComplexBlock(nn.Module):
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, dim) => (@, 1, feature_dim)
         # feature_x=self.signal_linear(feature_x)                  # (@ , 1, dim) => (@, 1, signal_feature_dim)
         x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, signal_feature_dim) => (@, 2, signal_feature_dim)
-                                                    
+        # todo: debug这里一下观察现在的特征和卷积是否合理                                            
         h = []
         for convnext, convnext2, attn, upsample in self.downs:
             x = convnext(x, t)

@@ -33,7 +33,7 @@ class PixelDiffusion(pl.LightningModule):
                                                           schedule=schedule, 
                                                           num_timesteps=num_timesteps, 
                                                           sampler=sampler)
-
+    # todo generate debug一下这个forward函数，为什么生成数据全是1
     @torch.no_grad()
     def forward(self, *args, **kwargs):
         return self.output_T(self.model(*args, **kwargs))

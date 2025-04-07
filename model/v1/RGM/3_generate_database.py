@@ -49,7 +49,7 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
     loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v5.ckpt"
+    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v1.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\1_pretrained_rgm.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
@@ -79,7 +79,6 @@ if __name__ == '__main__':
     x_real_list = []
     loc_vec_list = []
     loc_int_list = []
-    # todo: sf和tp或许作为condition输入会比较合理
     # generate data for each location x全都代表csi
     for loc_int in range(num_locs):
         print("\nGenerating CSI data for Location ID: {}\n".format(loc_int))
@@ -89,8 +88,8 @@ if __name__ == '__main__':
         # 500
         number_samples_generated = real_data.shape[0]
         
-        if number_samples_generated > 500:    # 限制生成数量，提高生成过程
-            number_samples_generated = 50
+        if number_samples_generated > 500:    # 限制生成数量，提高生成过程速度
+            number_samples_generated = 500
             batch_input = batch_input[:number_samples_generated]
             real_data= real_data[:number_samples_generated]
             loc_tensor=loc_tensor[:number_samples_generated]

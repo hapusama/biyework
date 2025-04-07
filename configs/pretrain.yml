@@ -9,7 +9,7 @@ frac_for_test: 0.25
 
 # Parameters for location classifier
 num_locs: 19
-input_dim: 8
+input_dim: 16
 hidden_dim: 128
 dropout_pra: 0.1
 learning_rate: 0.001
