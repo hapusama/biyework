@@ -35,7 +35,7 @@ def extract_and_draw_red_coordinates(image_path):
     return img, coordinates
 
 if __name__ == "__main__":
-    image_path = r"dataProcessing\20250402110730.png"  # 替换为实际图片路径
+    image_path = r"PicdataProcessing\20250402110730.png"  # 替换为实际图片路径
     drawn_img, red_coords = extract_and_draw_red_coordinates(image_path)
     
     # 显示绘制结果,保存图片

@@ -15,7 +15,7 @@ dropout_pra: 0.1
 learning_rate: 0.001
 num_epochs: 100
 batch_size: 256
-location_vector_name: "location_vector_v2.csv"
+location_vector_name: "location_vector_v3.csv"
 config: "configs/pretrain.yml"
 
 ##### New parameters for pre-training CGM #####
@@ -29,3 +29,4 @@ num_epochs_rgm: 100
 batch_size_rgm: 256
 learning_rate_rgm: 0.001
 rgm_pretrain_path: "1_pretrained_rgm.ckpt"
+physical_loss_rate: 1
