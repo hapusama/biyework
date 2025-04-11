@@ -32,20 +32,6 @@ except Exception:
 
 
 class EMA(Callback):
-    """
-    实现指数移动平均 (EMA)。
-    在训练模型时，此回调将维护训练参数的移动平均值。
-    在评估时，我们使用训练参数的移动平均副本。
-    在保存时，我们会保存一组带有前缀 `ema` 的额外参数。
-    参数:
-        decay: 计算移动平均时使用的指数衰减。必须在 0-1 之间。
-        apply_ema_every_n_steps: 每 n 个全局步骤应用一次 EMA。
-        start_step: 从 ``start_step`` 全局步骤开始应用 EMA。
-        evaluate_ema_weights_instead: 使用 EMA 权重进行验证，而不是原始权重。
-            请注意，这意味着在保存模型时，验证指标是用 EMA 权重计算的。
-        save_ema_weights_in_callback_state: 启用在回调状态中保存 ema 权重。
-            使用 NeMo 时不需要此功能，因为实验管理器会处理权重保存。
-    """
 
     def __init__(
         self,

@@ -9,19 +9,19 @@ frac_for_test: 0.25
 
 # Parameters for location classifier
 num_locs: 19
-input_dim: 16
+input_dim: 4
 hidden_dim: 128
 dropout_pra: 0.1
 learning_rate: 0.001
 num_epochs: 100
-batch_size: 256
+batch_size: 128
 location_vector_name: "location_vector_v3.csv"
-sf_parameter_path: r"model\v1\output\sf_parameters.csv"
+sf_parameter_path: "model\\v1\\output\\sf_parameters.csv"
 config: "configs/pretrain.yml"
 
 ##### New parameters for pre-training CGM #####
 signal_feature_dim: 6           # 因为inputdim太小，做一个线性变化为高纬度，组成channels*signal_feature_dim
-loc_dim: 6             # for location vector
+loc_dim: 5             # for location vector
 num_timesteps: 1000
 schedule: "linear"    # cosine, linear, quadratic, sigmoid
 data_channels: 2      # number of data channels（unet卷积层通道数）

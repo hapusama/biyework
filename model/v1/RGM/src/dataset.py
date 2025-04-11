@@ -70,7 +70,8 @@ class ComplexDatasetLocs(Dataset):
         for _, row in df.iterrows():
             if pd.notnull(row['x']) and pd.notnull(row['y']) and pd.notnull(row['distance']):
                 mapped_id = int(row['idx'])
-                vector = torch.tensor([row['x'], row['y'], row['distance'],row["distance_true"]], dtype=torch.float32)
+                vector = torch.tensor([row['x'], row['y'], row['distance'],row['distance_true']], dtype=torch.float32)
+                
                 label_features[mapped_id] = vector
          
         return label_features
@@ -82,21 +83,20 @@ class ComplexDatasetLocs(Dataset):
 
 
     def __getitem__(self, idx):
-        # rssi等传list的话stack之后cplx会变成（2，input_dim）的形状)
-        # 但是这里的rssi和snr是一个数值，所以stack之后是(2,)的形状
         rssi = self.rssi_list[idx]
         snr = self.snr_list[idx]
         label = self.labels[idx]
-        real = rssi
-        imaginary = snr
-        # 以上都不能为空
-        # if real is None or imaginary is None or label is None: 
-        #     raise ValueError(f"datasetloc part is None at index {idx}.")
-        # complex_number = torch.stack((real, imaginary), dim=0)
         label_feature = self.label_features.get(label.item())
+        sf,tp=snr[0],snr[1]
+        # 将snr归一化
+        snr = snr / 12
+        # 将label_feature最后一维弹出
+        distance_true = label_feature[-1]  # Extract the last element (distance_true)
+        label_feature = label_feature[:-1]  # Remove the last element to make it 3D
+        
         # 将label_feature和snr cat在一起,snr里面包含的是SF和TP
         label_feature = torch.cat((label_feature, snr), dim=0)        # 确保返回的值都是一维张量
-        return rssi, label_feature, label
+        return rssi, label_feature, label, sf,tp, distance_true
 
 
 class ShiftedDataset(Dataset):
@@ -208,7 +208,7 @@ def generate_three_dataset_v2(dataset_t,
                               valid_size, 
                               test_size):
     #complex number,label_feature(7维向量),label
-    labels = [label for _, _, label in dataset_t]
+    labels = [label for _, _, label,sf,tp,true_distance in dataset_t]
     
     indices = np.arange(len(dataset_t))
     
@@ -235,7 +235,7 @@ def generate_three_dataset_v3(dataset_t,
                               test_r):
 
     # Assuming dataset_t.labels is a list or tensor of labels
-    labels = np.array([label for _, _, label in dataset_t])
+    labels = np.array([label for _, _, label,sf,tp,true_distance in dataset_t])
     unique_labels = np.unique(labels)
     num_selected_labels = int(len(unique_labels) * ratios)
     selected_label_ids = np.random.choice(unique_labels, num_selected_labels, replace=False)

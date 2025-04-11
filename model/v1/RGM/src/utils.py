@@ -59,19 +59,26 @@ def compute_amplitude_3d(x):
 
 
 def get_features_by_label_v4(dataset, target_label):
-	features_by_label = []
-	label_vec_by_label = []
-	label_int_by_label = []
+    features_by_label = []
+    label_vec_by_label = []
+    label_int_by_label = []
+    sf_by_label = []
+    tp_by_label = []
+    true_distance_by_label = []
 
-	for i in range(len(dataset)):
-		feature, label, label_int = dataset[i]
 
-		if label_int == target_label:
-			features_by_label.append(feature)
-			label_vec_by_label.append(label)
-			label_int_by_label.append(label_int)
+    for i in range(len(dataset)):
+        feature, label, label_int,sf,tp,true_distance= dataset[i]
+
+        if label_int == target_label:
+            features_by_label.append(feature)
+            label_vec_by_label.append(label)
+            label_int_by_label.append(label_int)
+            sf_by_label.append(sf)
+            tp_by_label.append(tp)
+            true_distance_by_label.append(true_distance)
         
-	return torch.stack(features_by_label), torch.stack(label_vec_by_label), torch.stack(label_int_by_label)
+    return torch.stack(features_by_label), torch.stack(label_vec_by_label), torch.stack(label_int_by_label), torch.stack(sf_by_label), torch.stack(tp_by_label), torch.stack(true_distance_by_label)
 
 
 def calculate_fid(real_features, generated_features):

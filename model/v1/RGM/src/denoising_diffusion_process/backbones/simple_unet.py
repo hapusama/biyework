@@ -4,7 +4,8 @@ import math
 from einops import rearrange
 import math
 from inspect import isfunction
-
+import pandas as pd
+import numpy as np
 
 def exists(x):
 
@@ -269,7 +270,7 @@ class UnetComplexBlock(nn.Module):
                  channels=2,
                  dim_mults=(1, 2, 4, 8),signal_feature_dim=8):
         super().__init__()
-
+        self.p_tx=2
         self.leng = dim # input_dim
         time_dim = dim
         # self.signal_linear= nn.Linear(dim, signal_feature_dim) #处理feature_X便于后续进行卷积操作
@@ -345,7 +346,7 @@ class UnetComplexBlock(nn.Module):
         )
 
 
-    def forward(self, feature_x, time, location):
+    def forward(self, feature_x, time, location,sf,tp,true_distance):
         # feature_x: torch.Size([@, 1, 4])
         # time: torch.Size([@])
         # location: torch.Size([@, 3])

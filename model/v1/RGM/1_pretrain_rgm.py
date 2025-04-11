@@ -28,12 +28,12 @@ if __name__ == '__main__':
     # FLOOR3.pth
     data_path_area_1 = data_path = os.path.join(input_dir, args.data_name)
     loaded = torch.load(data_path_area_1)
-    rssi = loaded['rssi']   # shape [24576,7]
+    rssi = loaded['rssi']   
     snr = loaded['snr']
     label = loaded['label']
     
     location_vector_path = os.path.join(output_dir, args.location_vector_name)
-    # 生成一个数据集, 32000个数据，每个数据有rssi, snr, label, location_vector
+    # 生成一个数据集, 32000个数据，每个数据有rssi, snr, label, location_vector, snr里面包含的是sf和tp
     complex_dataset = ComplexDatasetLocs(rssi, 
                                          snr, 
                                          label, 
@@ -59,6 +59,8 @@ if __name__ == '__main__':
     # hidden_input_dim = args.hidden_input_len
     model_path_train_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
     signal_feature_dim=args.signal_feature_dim
+    sf_parameter=args.sf_parameter_path
+    
     rgm_logs = os.path.join(output_dir, f"rgm_log")
     os.makedirs(rgm_logs, exist_ok=True)
 
@@ -86,7 +88,7 @@ if __name__ == '__main__':
                                         loss_fn=model_loss, 
                                         schedule=schedule, 
                                         num_timesteps=num_timesteps, 
-                                        sampler=sampler_ddpm,signal_feature_dim=signal_feature_dim)
+                                        sampler=sampler_ddpm,signal_feature_dim=signal_feature_dim,sf_parameter=sf_parameter)
 
     train_loader = DataLoader(train_data_set, batch_size=batch_si, shuffle=True, num_workers=4, persistent_workers=True)
     val_loader = DataLoader(valid_data_set, batch_size=batch_si, shuffle=False, num_workers=4, persistent_workers=True)
@@ -94,7 +96,7 @@ if __name__ == '__main__':
     # 新增早停回调（监控 val_loss）
     early_stop_callback = pl.callbacks.EarlyStopping(
         monitor="val_loss",    # 监控验证损失
-        patience=15,           # 连续10个epoch未改善则停止
+        patience=25,           # 连续10个epoch未改善则停止
         mode="min",            # 监控指标越小越好
         verbose=True           # 打印停止信息
     )

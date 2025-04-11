@@ -9,7 +9,6 @@ from src.parameter_paser import parse_args_finetune
 from src.dataset import ComplexDatasetLocs, generate_three_dataset_v3
 from src.denoising_diffusion_process.samplers.DDPM import DDPM_Sampler
 from src. pixel_diffusion import PixelDiffusionConditional_v2
-from sklearn.preprocessing import MinMaxScaler
 from src import EMA
 
 
@@ -32,19 +31,6 @@ if __name__ == '__main__':
     rssi = loaded['rssi']
     snr = loaded['snr']
     label = loaded['label']
-
-    # rssi_mean = rssi.mean(dim=0, keepdim=True)
-    # rssi_std = rssi.std(dim=0, keepdim=True)
-    # rssi = (rssi - rssi_mean) / rssi_std
-
-    # snr_mean = snr.mean(dim=0, keepdim=True)
-    # snr_std = snr.std(dim=0, keepdim=True)
-    # snr = (snr - snr_mean) / snr_std
-    
-    # 对rssi和snr进行缩放到[-1, 1]范围
-    scaler = MinMaxScaler(feature_range=(-1, 1))
-    rssi = torch.tensor(scaler.fit_transform(rssi), dtype=torch.float32)
-    snr = torch.tensor(scaler.fit_transform(snr), dtype=torch.float32)
     location_vector_path = os.path.join(output_dir, args.location_vector_name)
     # 生成一个数据集, 32000个数据，每个数据有amplitude, phase, label, location_vector
     complex_dataset = ComplexDatasetLocs(rssi, 

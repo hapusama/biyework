@@ -18,7 +18,7 @@ class PixelDiffusion(pl.LightningModule):
                  loss_fn=F.mse_loss,
                  schedule="cosine",
                  num_timesteps=1000,
-                 sampler=None):
+                 sampler=None,sf_parameter=r"model\v1\output\sf_parameters.csv"):
         super().__init__()
         self.train_dataset = train_dataset
         self.valid_dataset = valid_dataset
@@ -32,7 +32,7 @@ class PixelDiffusion(pl.LightningModule):
                                                           loss_fn=loss_fn, 
                                                           schedule=schedule, 
                                                           num_timesteps=num_timesteps, 
-                                                          sampler=sampler)
+                                                          sampler=sampler,sf_parameter=sf_parameter)
     # todo generate debug一下这个forward函数，为什么生成数据全是1
     @torch.no_grad()
     def forward(self, *args, **kwargs):
@@ -47,7 +47,7 @@ class PixelDiffusion(pl.LightningModule):
         return input.clip(-1, 1)
 
     def training_step(self, batch_data, batch_idx):   
-        signal_vec, location_vec, _ = batch_data
+        signal_vec, location_vec,  label,sf,tp= batch_data
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
         # loss = self.model.p_loss(signal_vec, location_vec)
         self.log('train_loss', loss, 
@@ -59,7 +59,7 @@ class PixelDiffusion(pl.LightningModule):
         return loss
             
     def validation_step(self, batch_data, batch_idx):
-        signal_vec, location_vec, _ = batch_data
+        signal_vec, location_vec,  label,sf,tp = batch_data
 
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
         # loss = self.model.p_loss(signal_vec, location_vec)
@@ -107,7 +107,7 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
                  schedule="cosine",
                  num_timesteps=1000,
                  signal_feature_dim=8,
-                 sampler=None):
+                 sampler=None,sf_parameter=r"model\v1\output\sf_parameters.csv"):
         pl.LightningModule.__init__(self)
         self.signal_feature_dim = signal_feature_dim
         self.train_dataset = train_dataset
@@ -129,12 +129,12 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
                                                           loss_fn=loss_fn, 
                                                           schedule=schedule, 
                                                           num_timesteps=num_timesteps, 
-                                                          sampler=sampler,signal_feature_dim=signal_feature_dim)
+                                                          sampler=sampler,signal_feature_dim=signal_feature_dim,sf_parameter=sf_parameter)
     
     def training_step(self, batch_data, batch_idx):   
-        signal_vec, location_vec, _ = batch_data
+        signal_vec, location_vec, label,sf,tp,true_distance= batch_data
         # loss = self.model.p_loss(signal_vec, location_vec)
-        loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        loss = self.model.p_loss(self.input_T(signal_vec), location_vec,sf,tp,true_distance)
 
         self.log('train_loss', loss, 
                  on_step=True, 
@@ -145,9 +145,9 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
         return loss
             
     def validation_step(self, batch_data, batch_idx):
-        signal_vec, location_vec, _ = batch_data
+        signal_vec, location_vec,  label,sf,tp,true_distance= batch_data
         # loss = self.model.p_loss(signal_vec, location_vec)
-        loss = self.model.p_loss(self.input_T(signal_vec), location_vec)
+        loss = self.model.p_loss(self.input_T(signal_vec), location_vec,sf,tp,true_distance)
         # 修改点2: 验证损失也显示在进度条
         self.log('val_loss', loss, 
                  on_epoch=True,   # 验证通常只关注epoch平均

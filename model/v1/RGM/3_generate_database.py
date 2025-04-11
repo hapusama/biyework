@@ -49,7 +49,7 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
     loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v1.ckpt"
+    loaded_fine_tuned_rgm="model\\v1\\output\\2_finetuned_rgm.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\1_pretrained_rgm.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
@@ -70,7 +70,7 @@ if __name__ == '__main__':
                                                                 sampler=sampler_ddpm,signal_feature_dim=signal_feature_dim)
     
     diffusion_model.to(device)
-    input_vec, _, _ = complex_dataset[0]
+    input_vec, _, _,_,_,_ = complex_dataset[0]
     #data_dimension, length = input_vec.shape
     data_dimension=data_channels
     length=input_dim
@@ -79,12 +79,19 @@ if __name__ == '__main__':
     x_real_list = []
     loc_vec_list = []
     loc_int_list = []
-    # generate data for each location x全都代表csi
-    for loc_int in range(num_locs):
+    # Get unique location IDs from the dataset
+    unique_loc_ids = torch.unique(complex_dataset.labels).tolist()
+
+    # Generate data for each unique location
+    # todo：后续修改代码，不再受限于位置ID的数量，直接生成所有位置的数据
+    for loc_int in unique_loc_ids:
         print("\nGenerating CSI data for Location ID: {}\n".format(loc_int))
         # real_data[0]: [4,]
-        real_data, loc_tensor, loc_int_tensor = get_features_by_label_v4(complex_dataset, loc_int)
+        real_data, loc_tensor, loc_int_tensor,sf,tp,true_distance = get_features_by_label_v4(complex_dataset, loc_int)
         batch_input = loc_tensor.to(device)
+        sf=sf.to(device)
+        tp=tp.to(device)
+        true_distance=true_distance.to(device)
         # 500
         number_samples_generated = real_data.shape[0]
         
@@ -94,14 +101,18 @@ if __name__ == '__main__':
             real_data= real_data[:number_samples_generated]
             loc_tensor=loc_tensor[:number_samples_generated]
             loc_int_tensor=loc_int_tensor[:number_samples_generated]
+            sf=sf[:number_samples_generated]
+            tp=tp[:number_samples_generated]
+            true_distance=true_distance[:number_samples_generated]
         data_shape = [number_samples_generated, 1, length]  # todo：把channel写入yml
         diffusion_model.eval()
         with torch.no_grad():   #batch_input: 位置向量
-            generated_data = diffusion_model(data_shape, batch_input, sampler=sampler_ddpm, verbose=True)
+            generated_data = diffusion_model(data_shape, batch_input,sf,tp,true_distance,sampler=sampler_ddpm, verbose=True)
         selected_feature=batch_input[:,-2:]
         selected_feature=selected_feature.unsqueeze(1)  
         loc_tensor_last2=loc_tensor[:,-2:]
-        generated_data=torch.cat((generated_data, selected_feature), dim=2)
+        # todo: 保存数据sf tp是否保存归一化之前的
+        generated_data=torch.cat((generated_data, selected_feature), dim=2) #dim=2表示在最后一维cat
         real_data = torch.cat((real_data, loc_tensor_last2), dim=1)
         x_generated_list.append(generated_data.cpu())
         print("generated_data shape: ", generated_data.shape)

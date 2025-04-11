@@ -5,11 +5,11 @@ import torch.optim as optim
 from src.dataset import generate_three_loader_v3
 from sklearn.model_selection import train_test_split
 # 模型配置
-batch_size = 256
-input_dim=18
-# mode='generate'
+batch_size = 128
+input_dim=6
+mode='generate'
 # mode='test'
-mode='original'
+# mode='original'
 num_classes=19
 # 批次的大小
 input_data_pth=r'model\v1\output\floor3_v3.pth'
@@ -17,7 +17,7 @@ lr = 1e-3
 # 优化器的学习率
 valid_size = 0.2
 test_size=0.2
-num_epochs = 250
+num_epochs = 300
 new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
 model_path_train=r'model\v1\output\classifier_ori.pth'
 # todo 最后重新设置一个总共的yml，尽量一到两个，把参数全都统一写入yml中
@@ -76,7 +76,7 @@ if "__main__"==__name__:
                 data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
                 data_batch_fake = data_batch_fake.squeeze(1)
                 # 在训练循环中添加噪声
-                data_batch_fake += torch.randn_like(data_batch_fake) * 0.01  # 添加高斯噪声
+                # data_batch_fake += torch.randn_like(data_batch_fake) * 0.01  # 添加高斯噪声
                 # 随机丢弃部分特征
                 dropout_mask = torch.rand_like(data_batch_fake) > 0.1  # 90% 的概率保留特征
                 data_batch_fake *= dropout_mask
@@ -93,7 +93,7 @@ if "__main__"==__name__:
                     data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
                     data_batch_fake = data_batch_fake.squeeze(1)
                     # 在训练循环中添加噪声
-                    data_batch_fake += torch.randn_like(data_batch_fake) * 0.01  # 添加高斯噪声
+                    # data_batch_fake += torch.randn_like(data_batch_fake) * 0.01  # 添加高斯噪声
                     # 随机丢弃部分特征
                     dropout_mask = torch.rand_like(data_batch_fake) > 0.1  # 90% 的概率保留特征
                     data_batch_fake *= dropout_mask

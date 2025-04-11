@@ -22,7 +22,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
                  loss_fn=F.mse_loss,
                  schedule='linear',
                  num_timesteps=1000,
-                 sampler=None,signal_feature_dim=8):
+                 sampler=None,signal_feature_dim=8,sf_parameter=r"model\v1\output\sf_parameters.csv"):
         super().__init__()
         # self.trans_dim = signal_feature_dim #并非输入维度
         self.loc_dim = loc_dim
@@ -31,6 +31,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         self.schedule = schedule
         self.num_timesteps = num_timesteps
         # Forward Process
+        self.sf_parameters=sf_parameter
         self.forward_process = GaussianForwardProcess(num_timesteps=self.num_timesteps, 
                                                       schedule=self.schedule)
         
@@ -48,6 +49,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
     def forward(self,
                 data_shape,
                 condition,
+                sf,tp,true_distance,
                 sampler=None,
                 verbose=False):
         """
@@ -79,20 +81,46 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         for i in tqdm(it, desc='diffusion sampling', total=num_timesteps) if verbose else it:
 
             t = torch.full((b,), i, device=device, dtype=torch.long)
-            z_t = self.model(x_t, t, condition)   # prediction of noise
+            z_t = self.model(x_t, t, condition,sf,tp,true_distance)   # prediction of noise
 
             # call forward function of DDPM_Sampler Class: 
             # Given approximation of noise z_t in x_t predict x_(t-1)
             # prediction of next state
             x_t = sampler(x_t, t, z_t)
-            
         print(x_t.shape)
+        # 物理模型
+        df=pd.read_csv(self.sf_parameters)
+        # 读取数据
+        rows = df.set_index('sf').reindex(sf.cpu().numpy())  # 根据 sf 数组批量获取对应的参数
+        
+        if rows.isnull().values.any():
+            print("没有找到对应的SF参数，请检查输入的SF值。")
+            raise ValueError("没有找到对应的SF参数，请检查输入的SF值。")
+        
+        pl_0 = torch.tensor(rows['pl_0'].values, device=true_distance.device, dtype=true_distance.dtype)
+        gamma_Sf = torch.tensor(rows['gamma_sf'].values, device=true_distance.device, dtype=true_distance.dtype)
+        log_distance = torch.log10(true_distance)
+        
+        rssi_path_loss=self.path_loss_model(log_distance, gamma_Sf, pl_0,tp)
+        rssi_path_loss=rssi_path_loss/150
+        
+        rate=0.2
+        # 将 rssi_path_loss 加权到 out 的指定索引位置
+        x_t[:, 0, [0, 1]] = (1 - rate) * x_t[:, 0, [0, 1]] + rate * rssi_path_loss.unsqueeze(-1)
+   
         return x_t
 
+    def path_loss_model(self, log_distance, gamma_Sf, pl_0, tp):
+        # Ensure all inputs are tensors and have the same shape
+        assert log_distance.shape == gamma_Sf.shape == pl_0.shape == tp.shape, \
+            "All input tensors must have the same shape"
+        return tp - pl_0 - 10 * gamma_Sf * log_distance
+    
     # x is signal condition is location vector
-    def p_loss(self, x, condition):
+    def p_loss(self, x, condition,sf,tp,true_distance):
         """
             Assumes output and input are in [-1,+1] range
+            condition concludes sf and tp
         """        
         # batch size，channel(phase amplitude) input_dim
         # 当h与w不存在时，x.shape = (b, input_dim)
@@ -108,10 +136,9 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         # Get noisy sample at t given x_0
         output_noisy, noise = self.forward_process(x, t, return_noise=True)
 
-        noise_hat = self.model(output_noisy, t, condition)
+        noise_hat = self.model(output_noisy, t, condition,sf,tp,true_distance)
 
         # apply loss
-        # todo: loss加入物理loss的部分
         return self.loss_fn(noise, noise_hat)
     
 
