@@ -51,6 +51,7 @@ if __name__ == '__main__':
     loc_dim = args.loc_dim
     num_timesteps = args.num_timesteps
     schedule = args.schedule
+    # todo: 能不能把损失函数换了，计算两个张量的相似度
     model_loss = F.mse_loss
     data_channels = args.data_channels
     # 通道的倍数 1 2 4 8

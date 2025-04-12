@@ -55,6 +55,7 @@ class DDPM_Sampler(nn.Module):
         return mean_pred + std_pred * z
 
     #去噪获得前一步分布的参数
+    # todo: 看一下这个函数有没有写错啥的
     def posterior_params(self, x_t, t, noise_pred):
         
         assert (t < self.num_timesteps).all()

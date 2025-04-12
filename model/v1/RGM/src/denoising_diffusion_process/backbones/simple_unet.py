@@ -263,7 +263,7 @@ class ComplexTimeBlock(nn.Module):
 
 ##### Main Model #####
 class UnetComplexBlock(nn.Module):
-
+    #todo: 卷积核的size可能要再根据实际情况定夺一下
     def __init__(self, 
                  dim, 
                  loc_dim=7,
@@ -345,7 +345,7 @@ class UnetComplexBlock(nn.Module):
             nn.Linear(dim, dim),  # out_dim is channels
         )
 
-
+    # todo 卷积的时候完全没用sf和tp我服了，debug一下
     def forward(self, feature_x, time, location,sf,tp,true_distance):
         # feature_x: torch.Size([@, 1, 4])
         # time: torch.Size([@])

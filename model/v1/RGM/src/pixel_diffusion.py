@@ -133,7 +133,7 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
     
     def training_step(self, batch_data, batch_idx):   
         signal_vec, location_vec, label,sf,tp,true_distance= batch_data
-        # loss = self.model.p_loss(signal_vec, location_vec)
+        # loss = self.model.p_loss(signal_vec, location_vec,sf,tp,true_distance)
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec,sf,tp,true_distance)
 
         self.log('train_loss', loss, 
@@ -146,7 +146,7 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
             
     def validation_step(self, batch_data, batch_idx):
         signal_vec, location_vec,  label,sf,tp,true_distance= batch_data
-        # loss = self.model.p_loss(signal_vec, location_vec)
+        # loss = self.model.p_loss(signal_vec, location_vec,sf,tp,true_distance)
         loss = self.model.p_loss(self.input_T(signal_vec), location_vec,sf,tp,true_distance)
         # 修改点2: 验证损失也显示在进度条
         self.log('val_loss', loss, 

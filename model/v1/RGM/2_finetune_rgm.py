@@ -58,7 +58,8 @@ if __name__ == '__main__':
     model_path_fintune_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
     model_path_fintune_rgm_run = os.path.join(output_dir, f"finetuned_rgm_running.ckpt")
     
-    loaded_pretrained_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
+    # loaded_pretrained_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
+    loaded_pretrained_rgm = r"model\v1\output\lossmin\val_loss_pretrain-v1.ckpt"
 
     rgm_logs = os.path.join(output_dir, f"rgm_log")
     os.makedirs(rgm_logs, exist_ok=True)
