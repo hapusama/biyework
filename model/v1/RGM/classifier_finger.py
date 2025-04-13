@@ -6,10 +6,10 @@ from src.dataset import generate_three_loader_v3
 from sklearn.model_selection import train_test_split
 # 模型配置
 batch_size = 128
-input_dim=6
-mode='generate'
+input_dim=18
+# mode='generate'
 # mode='test'
-# mode='original'
+mode='original'
 num_classes=19
 # 批次的大小
 input_data_pth=r'model\v1\output\floor3_v3.pth'

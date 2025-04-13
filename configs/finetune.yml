@@ -37,7 +37,7 @@ rgm_pretrain_path: "1_pretrained_rgm.ckpt"
 
 ##### New parameters for fine-tuning rGM #####
 # data_name_ft: "FLOOR3_v4.pth"
-data_name_ft: "best_sf12_pretrain.pth.pth"
+data_name_ft: "best_sf12_pretrain.pth"
 ratios_locs: 0.25
 data_name_fake: "floor3_v3.pth"
 save_model_name_fake: "classifier_fingerprint.ckpt"

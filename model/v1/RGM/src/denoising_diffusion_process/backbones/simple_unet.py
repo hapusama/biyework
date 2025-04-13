@@ -350,6 +350,7 @@ class UnetComplexBlock(nn.Module):
         # feature_x: torch.Size([@, 1, 4])
         # time: torch.Size([@])
         # location: torch.Size([@, 3])
+        # todo：卷积换成全连接层参数不一定少些吧
         time_2=time
         t = self.time_mlp(time_2)                                # (@ , ) => (@ , featuren_dim)
         class_cond = self.class_emb(location)                    # (@, 3) => (@, feature_dim)
