@@ -9,9 +9,7 @@ from src.parameter_paser import parse_args_pretrain
 from src.dataset import generate_three_dataset_v2, ComplexDatasetLocs
 from src.denoising_diffusion_process.samplers.DDPM import DDPM_Sampler
 from src. pixel_diffusion import PixelDiffusionConditional_v2
-from sklearn.preprocessing import MinMaxScaler
 from src import EMA
-from pytorch_lightning.callbacks import ModelCheckpoint
 import numpy as np
 torch.manual_seed(42)
 np.random.seed(42)
@@ -97,7 +95,7 @@ if __name__ == '__main__':
     # 新增早停回调（监控 val_loss）
     early_stop_callback = pl.callbacks.EarlyStopping(
         monitor="val_loss",    # 监控验证损失
-        patience=25,           # 连续10个epoch未改善则停止
+        patience=300,           # 连续10个epoch未改善则停止
         mode="min",            # 监控指标越小越好
         verbose=True           # 打印停止信息
     )

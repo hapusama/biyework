@@ -57,6 +57,26 @@ def compute_amplitude_3d(x):
 
 	return abs_value
 
+def get_condition_by_label(loc_int,location_vector_path):
+    """_summary_
+
+    Args:
+        loc_int (_type_): int
+        sf (_type_): [@,]
+        tp (_type_): [@,]
+        location_vector_path (_type_): string
+    """
+    location_vector = pd.read_csv(location_vector_path)
+    # 查询location_vector中idx列等于loc_int对应的行
+    if 'idx' not in location_vector.columns:
+        raise KeyError("'idx' column not found in the CSV file. Available columns: " + str(location_vector.columns))
+    selected_row = location_vector[location_vector['idx'] == loc_int]
+    x = selected_row['x'].values[0]
+    y=selected_row['y'].values[0]
+    distance=selected_row['distance'].values[0]
+    true_distance=selected_row['distance_true'].values[0]
+    return x,y,distance,true_distance
+    
 
 def get_features_by_label_v4(dataset, target_label):
     features_by_label = []

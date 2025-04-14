@@ -2,18 +2,18 @@
 # some parameters are reused for area b
 # Training settings
 train_flag: True
-data_name: "pretrain.pth"
+data_name: "floor3_sf_10_pretrain.pth"
 save_model_name: "RGM_pretrain.ckpt"
 frac_for_valid: 0.05
-frac_for_test: 0.25
+frac_for_test: 0.15
 
 # Parameters for location classifier
 num_locs: 19
-input_dim: 16
+input_dim: 4
 hidden_dim: 128
 dropout_pra: 0.1
 learning_rate: 0.001
-num_epochs: 100
+num_epochs: 300
 batch_size: 128
 location_vector_name: "location_vector_v3.csv"
 sf_parameter_path: "model\\v1\\output\\sf_parameters.csv"
@@ -25,7 +25,7 @@ loc_dim: 5             # for location vector
 num_timesteps: 1000
 schedule: "linear"    # cosine, linear, quadratic, sigmoid
 data_channels: 2      # number of data channels（unet卷积层通道数）
-channel_dimension_scale: [1, 2, 4,8]
+channel_dimension_scale: [1, 2, 4,8,16]
 num_epochs_rgm: 100
 batch_size_rgm: 256
 learning_rate_rgm: 0.001

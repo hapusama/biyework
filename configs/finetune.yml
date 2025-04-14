@@ -12,7 +12,7 @@ classifier_input_channels: 2
 classifier_hidden_input_len: 4
 num_locs: 19
 n_layers: 3
-input_dim: 16
+input_dim: 4
 hidden_dim: 128
 dropout_pra: 0.1
 learning_rate: 0.0001
@@ -28,7 +28,7 @@ num_timesteps: 1000
 schedule: "linear"    # cosine, linear, quadratic, sigmoid
 data_channels: 2      # number of data channels（unet卷积层通道数）
 sf_parameter_path: "model\\v1\\output\\sf_parameters.csv"
-channel_dimension_scale: [1, 2, 4,8]
+channel_dimension_scale: [1, 2, 4,8,16]
 num_epochs_rgm: 100
 batch_size_rgm: 128
 learning_rate_rgm: 0.001
@@ -37,9 +37,11 @@ rgm_pretrain_path: "1_pretrained_rgm.ckpt"
 
 ##### New parameters for fine-tuning rGM #####
 # data_name_ft: "FLOOR3_v4.pth"
-data_name_ft: "best_sf12_pretrain.pth"
+# data_name_ft: "best_sf12_pretrain.pth"
+data_name_ft: "pretrain.pth"
+data_name_fake: "fake_Data_sf_9.pth"
 ratios_locs: 0.25
-data_name_fake: "floor3_v3.pth"
+# data_name_fake: "floor3_v3.pth"
 save_model_name_fake: "classifier_fingerprint.ckpt"
 num_epochs_rgm_ft: 50
 rgm_fine_tune_path: "2_finetuned_rgm.ckpt"

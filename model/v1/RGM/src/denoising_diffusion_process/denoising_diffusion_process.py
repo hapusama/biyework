@@ -104,10 +104,10 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         rssi_path_loss=self.path_loss_model(log_distance, gamma_Sf, pl_0,tp)
         rssi_path_loss=rssi_path_loss/150
         
-        rate=0.2
-        print("rssi_path_loss:",rssi_path_loss)
+        rate=0.1
+        print("rssi_path_loss unique values:", torch.unique(rssi_path_loss))
         # 将 rssi_path_loss 加权到 out 的指定索引位置
-        x_t[:, 0, [0, 1,4,5,8,9,12,13]] = (1 - rate) * x_t[:, 0, [0, 1, 4,5,8,9,12,13]] + rate * rssi_path_loss.unsqueeze(-1)
+        x_t[:, 0, [0, 1]] = (1 - rate) * x_t[:, 0, [0, 1]] + rate * rssi_path_loss.to(x_t.dtype).unsqueeze(-1)
    
         return x_t
 

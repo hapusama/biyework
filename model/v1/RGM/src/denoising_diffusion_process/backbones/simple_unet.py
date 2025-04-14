@@ -215,6 +215,23 @@ class PreNorm(nn.Module):
         x = self.norm(x)
         return self.fn(x)
 
+class multi_channels_linear(nn.Module):
+    def __init__(self,in_dim, out_dim):
+        super().__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+    
+    def forward(self,x):
+        # x: torch.Size([@, in_dim, input_dim])-> torch.Size([@,  in_dim*input_dim])
+        input_dim = x.shape[-1]
+        device=x.device
+        h=x.reshape(-1, self.in_dim * input_dim)
+        h=nn.Linear(self.in_dim * input_dim, self.out_dim*input_dim).to(device)(h)
+        res=h.reshape(-1, self.out_dim, input_dim)
+        # h: torch.Size([@, out_dim, input_dim])
+        return res
+    
+        
 
 # building block modules for signal (containg location info) and timestep
 class ComplexTimeBlock(nn.Module):
@@ -232,19 +249,24 @@ class ComplexTimeBlock(nn.Module):
             nn.GELU(),
             nn.Linear(time_emb_dim, dim)
         ) if exists(time_emb_dim) else None
-        # todo group参数在这个模型里有什么作用
-        self.ds_conv = nn.Conv1d(dim, dim, 7, padding=3,groups=dim)
-        # self.ds_conv = nn.Conv1d(dim, dim, 3, padding=1,groups=dim)
-
+        self.ds_conv = nn.Conv1d(dim, dim, 1, padding=0,groups=dim)
+        # self.ds_conv = multi_channels_linear(dim, dim)
         self.net = nn.Sequential(
             LayerNorm(dim) if norm else nn.Identity(),
-            nn.Conv1d(dim, dim_out * mult, 3, padding=1),
+            nn.Conv1d(dim, dim_out * mult, 1, padding=0),
             nn.GELU(),
-            nn.Conv1d(dim_out * mult, dim_out, 3, padding=1)
+            nn.Conv1d(dim_out * mult, dim_out, 1, padding=0)
             )
-
-        self.res_conv = nn.Conv1d(dim, dim_out, 3,padding=1) if dim != dim_out else nn.Identity()
-
+        # self.net = nn.Sequential(
+        #     LayerNorm(dim) if norm else nn.Identity(),
+        #     multi_channels_linear(dim, dim_out * mult),
+        #     nn.GELU(),
+        #     multi_channels_linear(dim_out * mult, dim_out)
+        #     )
+        self.dim = dim
+        self.res_conv = nn.Conv1d(dim, dim_out, 1,padding=0) if dim != dim_out else nn.Identity()
+        # self.res_conv = multi_channels_linear(dim, dim_out) if dim != dim_out else nn.Identity()
+        
 
     def forward(self, x, time_emb=None):
         h = self.ds_conv(x)
@@ -259,6 +281,7 @@ class ComplexTimeBlock(nn.Module):
         residual_x = self.res_conv(x)
 
         return h + residual_x
+
 
 
 ##### Main Model #####
@@ -306,7 +329,7 @@ class UnetComplexBlock(nn.Module):
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
 
-        # [(2, 16), (16, 32), (32, 64), (64, 128)] time_dim = 16
+        # [(2, 8), (8, 16), (16, 32), (32, 64)] 
         for ind, (dim_in, dim_out) in enumerate(in_out):
             is_last = ind >= (num_resolutions - 1)
             length_temp = dim_list_sample[ind] if not is_last else None  # [16, 32, 64, 128]
@@ -323,7 +346,7 @@ class UnetComplexBlock(nn.Module):
         self.mid_attn = Residual(PreNorm(mid_dim, LinearAttention(mid_dim)))
         self.mid_block2 = ComplexTimeBlock(mid_dim, mid_dim, time_emb_dim=time_dim)
 
-        # [(64, 128), (32, 64), (16, 32)]
+        # [(64,32), (32, 16), (16, 8), (8, 2)]
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):  # ind: 0, 1, 2
             # is_last will not go to True, always be False
             is_last = ind >= (num_resolutions - 1)
@@ -345,12 +368,10 @@ class UnetComplexBlock(nn.Module):
             nn.Linear(dim, dim),  # out_dim is channels
         )
 
-    # todo 卷积的时候完全没用sf和tp我服了，debug一下
     def forward(self, feature_x, time, location,sf,tp,true_distance):
         # feature_x: torch.Size([@, 1, 4])
         # time: torch.Size([@])
         # location: torch.Size([@, 3])
-        # todo：卷积换成全连接层参数不一定少些吧
         time_2=time
         t = self.time_mlp(time_2)                                # (@ , ) => (@ , featuren_dim)
         class_cond = self.class_emb(location)                    # (@, 3) => (@, feature_dim)

@@ -114,6 +114,54 @@ class ShiftedDataset(Dataset):
     def __len__(self):
         return len(self.base_dataset)
 
+class RealorFakeDataset(Dataset):
+    def __init__(self, 
+                 features, 
+                 labels):
+        assert len(features) == len(labels), "Mismatch in list lengths"
+        self.features = features
+        self.labels = labels
+
+
+    def __len__(self):
+        return len(self.labels)
+
+
+    def __getitem__(self, idx):
+        label = self.labels[idx]
+        feature = self.features[idx]
+
+        return feature, label
+
+def generate_three_loader_v4(dataset_t, 
+                             n_batch_size, 
+                             valid_size, 
+                             test_size):
+    labels = [label for _, label in dataset_t]
+    
+    indices = np.arange(len(dataset_t))
+    
+    train_temp_indices, test_indices = train_test_split(
+        indices, test_size=test_size, stratify=labels, random_state=42)
+    
+    train_temp_labels = [labels[i] for i in train_temp_indices]
+    
+    train_indices, valid_indices = train_test_split(
+        train_temp_indices, test_size=valid_size, stratify=train_temp_labels, random_state=42)
+    
+    # Create dataset subsets for each split
+    train_dataset = Subset(dataset_t, train_indices)
+    valid_dataset = Subset(dataset_t, valid_indices)
+    test_dataset = Subset(dataset_t, test_indices)
+    
+    train_data_loader = DataLoader(dataset=train_dataset, batch_size=n_batch_size, shuffle=True)
+    valid_data_loader = DataLoader(dataset=valid_dataset, batch_size=len(valid_indices), shuffle=False)
+    test_data_loader  = DataLoader(dataset=test_dataset, batch_size=len(test_indices), shuffle=False)
+    
+    print(f'Loaded {len(dataset_t)} samples, split {len(train_indices)}/{len(valid_indices)}/{len(test_indices)} for train/valid/test.')
+    
+    return train_data_loader, valid_data_loader, test_data_loader
+
 
 class ComplexDataset_real_imagary_v2(Dataset):
     
