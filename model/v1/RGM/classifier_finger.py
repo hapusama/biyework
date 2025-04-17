@@ -6,20 +6,20 @@ from src.dataset import generate_three_loader_v4
 from src.dataset import RealorFakeDataset
 
 # 模型配置
-batch_size = 128
+batch_size = 256
 input_dim=6
 mode='generate'
 # mode='test'
 # mode='original'
 num_classes=19
 # 批次的大小
-fake_data_pth=r'model\v1\output\fake_Data_sf_9.pth'
-real_data_pth=r'model\v1\input\finger_sf_9_floor3.pth'
+fake_data_pth=r'model\v1\output\floor3_sf_11_fake.pth'
+real_data_pth=r'model\v1\input\finger_sf_11_floor3.pth'
 lr = 1e-3
 # 优化器的学习率
-valid_size = 0.15
+valid_size = 0.1
 test_size=0.2
-num_epochs = 300
+num_epochs = 200
 new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
 model_path_train=r'model\v1\output\classifier_ori.pth'
 # todo 最后重新设置一个总共的yml，尽量一到两个，把参数全都统一写入yml中
@@ -29,15 +29,23 @@ class LocationClassifier(nn.Module):
     def __init__(self, input_dim, num_classes):
         super(LocationClassifier, self).__init__()
         self.fc = nn.Sequential(
-            nn.Linear(input_dim, 32),
-            nn.ReLU(),
-            nn.Linear(32, 64),
+            nn.Linear(input_dim, 64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Linear(64, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.Linear(32, num_classes)
         )
@@ -52,15 +60,15 @@ if "__main__"==__name__:
     real_dataset = RealorFakeDataset(real_data['features'], real_data['label'])
     real_train_loader, real_valid_loader, real_test_loader = generate_three_loader_v4(real_dataset,
                                                                 batch_size,
-                                                                valid_size,
-                                                                test_size)
+                                                                0.15,
+                                                                0.25)
     # 初始化模型
     model = LocationClassifier(input_dim, num_classes)
     # 定义损失函数和优化器
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # 应用学习率下降策略
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=15, factor=0.1, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=10, factor=0.1, verbose=True)
     # 设置随机数种子
     # 训练模型
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

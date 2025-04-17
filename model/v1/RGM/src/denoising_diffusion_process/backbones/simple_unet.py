@@ -378,7 +378,7 @@ class UnetComplexBlock(nn.Module):
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, dim) => (@, 1, feature_dim)
         # feature_x=self.signal_linear(feature_x)                  # (@ , 1, dim) => (@, 1, signal_feature_dim)
         x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, signal_feature_dim) => (@, 2, signal_feature_dim)
-        # todo: debug这里一下观察现在的特征和卷积是否合理                                            
+
         h = []
         for convnext, convnext2, attn, upsample in self.downs:
             x = convnext(x, t)
