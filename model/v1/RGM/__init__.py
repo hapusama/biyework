@@ -1,5 +1,4 @@
 # todo:
-# 1. 重构location_vector 增量式添加真实坐标x,y
 # 2. 跨楼层如何做，每一层的rssi阈值判断？
 # 3. 输入是什么？ 每一层网关的rssi + snr + average_rssi
 ## [{gateway_id: 1, rssi: -50, snr: 20, average_rssi: -55}, {gateway_id: 2, rssi: -60, snr: 25, average_rssi: -65}...]
@@ -7,9 +6,6 @@
 ## 真实坐标x,y + 楼层
 
 #需要实现什么？
-## 1. 通过生成的指纹数据中的location_id和真实坐标进行匹配
-## 2. 通过坐标+指纹数据进行插值
-## 3. 保存得到新的指纹数据
 ## 4. knn or mlp来进行坐标的预测
 ### 首先通过阈值判断来确定floor_id 然后丢给对应的模型进行预测
 ## 5. 输出来得到floor_id和坐标x,y

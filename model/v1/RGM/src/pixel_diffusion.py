@@ -95,7 +95,7 @@ class PixelDiffusion(pl.LightningModule):
 # ，最终实现根据位置生成对应信号（或恢复信号），服务于定位任务
 class PixelDiffusionConditional_v2(PixelDiffusion):
     def __init__(self,
-                 train_dataset, 
+                 train_dataset=None, 
                  input_dim=4,
                  loc_dim=3,
                  channels=1, 

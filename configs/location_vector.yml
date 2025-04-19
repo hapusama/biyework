@@ -1,10 +1,10 @@
 ##### Parameters used for area a #####
 # some parameters are reused for area b
 # Training settings
-gateway_X: 598
-gateway_Y: 474
+gateway_X: 544
+gateway_Y: 460
 # Parameters for location classifier
 configs: "location_vector.yml"
 location_vector_name: "location_vector_v3.csv"
 distance_scale: 0.123
-
+location_vector_all_name: "location_vector_all.csv" #这个文件里面包含用来做测试集的点

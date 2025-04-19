@@ -1,7 +1,7 @@
 import os
 import torch
 import torch.nn.functional as F
-from sklearn.preprocessing import MinMaxScaler
+import pandas as pd
 from src.parameter_paser import parse_args_finetune,parse_args_pretrain
 from src.dataset import ComplexDatasetLocs, ComplexDataset_real_imagary_v2,RealorFakeDataset
 from src.denoising_diffusion_process.samplers.DDPM import DDPM_Sampler
@@ -26,18 +26,18 @@ if __name__ == '__main__':
 
     # using data from area b
     # todo 不同的单个sf下去跑跑看，试着把生成的数据和真实数据生成摘出来分开
-    data_path_area_2 = data_path = os.path.join(input_dir, args.data_name_ft)
-    loaded = torch.load(data_path_area_2)
-    rssi = loaded['rssi']
-    snr = loaded['snr']
-    label = loaded['label']
+    # data_path_area_2 = data_path = os.path.join(input_dir, args.data_name_ft)
+    # loaded = torch.load(data_path_area_2)
+    # rssi = loaded['rssi']
+    # snr = loaded['snr']
+    # label = loaded['label']
     location_vector_path = os.path.join(output_dir, args.location_vector_name)
 
-    complex_dataset = ComplexDatasetLocs(rssi, 
-                                         snr, 
-                                         label, 
-                                         location_vector_path
-                                         )
+    # complex_dataset = ComplexDatasetLocs(rssi, 
+    #                                      snr, 
+    #                                      label, 
+    #                                      location_vector_path
+    #                                      )
     
     input_dim = args.input_dim
     batch_si = args.batch_size_rgm
@@ -51,28 +51,25 @@ if __name__ == '__main__':
     signal_feature_dim=args.signal_feature_dim
     loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
     # loaded_fine_tuned_rgm="model\\v1\\output\\2_finetuned_rgm.ckpt"
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v1.ckpt"
+    loaded_fine_tuned_rgm=r"model\v1\output\rgm_floor3_sf_11_pretrained.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
     print("\nThe loaded diffusion model: {}\n".format(loaded_fine_tuned_rgm))
-    # 这里先不用 loaded_fine_tuned_rgm
+
     diffusion_model = PixelDiffusionConditional_v2.load_from_checkpoint(checkpoint_path=loaded_fine_tuned_rgm, 
-                                                                train_dataset=complex_dataset, 
-                                                                input_dim=input_dim, 
-                                                                loc_dim=loc_dim, 
-                                                                channels=data_channels, 
-                                                                dim_mults=dimension_scale, 
-                                                                valid_dataset=complex_dataset, 
-                                                                batch_size=batch_si, 
-                                                                lr=learning_rate, 
-                                                                loss_fn=model_loss, 
-                                                                schedule=schedule, 
-                                                                num_timesteps=num_timesteps, 
-                                                                sampler=sampler_ddpm,signal_feature_dim=signal_feature_dim)
-    
+                                                            input_dim=input_dim, 
+                                                            loc_dim=loc_dim, 
+                                                            channels=data_channels, 
+                                                            dim_mults=dimension_scale, 
+                                                            batch_size=batch_si, 
+                                                            lr=learning_rate, 
+                                                            loss_fn=model_loss, 
+                                                            schedule=schedule, 
+                                                            num_timesteps=num_timesteps, 
+                                                            sampler=sampler_ddpm,signal_feature_dim=signal_feature_dim)
+
     diffusion_model.to(device)
-    input_vec, _, _,_,_,_ = complex_dataset[0]
-    #data_dimension, length = input_vec.shape
+
     data_dimension=data_channels
     length=input_dim
     # for saving generated and real collected data
@@ -82,7 +79,6 @@ if __name__ == '__main__':
     loc_vec_list = []
     loc_int_list = []
     # Get unique location IDs from the dataset
-    unique_loc_ids = torch.unique(complex_dataset.labels).tolist()
     # todo: 写进超参数
     number_samples_generated=500 
     sf=11
@@ -92,15 +88,17 @@ if __name__ == '__main__':
     tp_list=torch.tensor(tp).unsqueeze(0).repeat(number_samples_generated)
     sf_list = (sf_list/12).unsqueeze(1)  # [number_samples_generated, 1]
     tp_list = (tp_list/12).unsqueeze(1)  # [number_samples_generated, 1]
+    location_vector_df= pd.read_csv(location_vector_path)
+    unique_loc_ids = location_vector_df['location_id'].unique()
     # 指定一个sf
-    for loc_int in range(num_locs):
-        print("\nGenerating CSI data for Location ID: {}\n".format(loc_int))
+    # todo 生成同一层的其他地方的点
+    for loc_idx in unique_loc_ids:
+        print("\nGenerating CSI data for Location ID: {}\n".format(loc_idx))
         # real_data[0]: [4,]
-        if loc_int in unique_loc_ids:
-            real_data, _, _,_,_,_ = get_features_by_label_v4(complex_dataset, loc_int)
+        match_row= location_vector_df[location_vector_df['location_id'] == loc_idx]   
+        x,y,distance,true_distance = location_vector_df[location_vector_df['location_id'] == loc_idx].iloc[:, 1:5].values[0]
         
-        x,y,distance,true_distance = get_condition_by_label(loc_int,location_vector_path)
-        
+        loc_int=match_row['idx'].values[0]
         loc_int_tensor = torch.tensor(loc_int).unsqueeze(0).repeat(number_samples_generated)
         x_tensor = torch.tensor(x).unsqueeze(0).repeat(number_samples_generated)
         y_tensor = torch.tensor(y).unsqueeze(0).repeat(number_samples_generated)
@@ -118,7 +116,6 @@ if __name__ == '__main__':
         condition = condition.float()
         condition=condition.to(device)
         loc_int_tensor=loc_int_tensor.to(device)
-        real_data = real_data.to(device)
         true_distance=true_distance.to(device)
         data_shape = [number_samples_generated, 1, length]  # todo：把channel写入yml   
         
@@ -144,8 +141,6 @@ if __name__ == '__main__':
         generated_data=torch.cat((generated_data, selected_feature), dim=1) #dim=2表示在最后一维cat
         print("generated_data shape: ", generated_data.shape)
         print("generated_data : ", generated_data)
-        print("real_data.shape without sf tp : ", real_data.shape)
-        print("real_data without sf tp:", real_data)
         loc_vec_list.append(condition.cpu())    #[@,5]
         loc_int_list.append(loc_int_tensor.cpu())   #[@,]
         x_generated_list.append(generated_data.cpu())
@@ -155,7 +150,7 @@ if __name__ == '__main__':
     tensor_loc_int = torch.cat(loc_int_list, dim=0)
     
     
-    # 分别保存两个数据集
+    # 保存生成数据构成的数据集
     fake_Dataset = RealorFakeDataset(tensor_generated_x,tensor_loc_int)
     data_path_area_fake = os.path.join(output_dir, args.data_name_fake)
     
