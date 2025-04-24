@@ -96,80 +96,81 @@ def interpolation(df,nums):
     
     
 if __name__=="__main__":
-    # reload_fake_data(fake_data_path)
+    reload_fake_data(fake_data_path)
     # 读取生成的csv文件
     location_vector=pd.read_csv(location_vector_path)
     # 遍历每个生成data的csv文件
-    for path in fake_data_path:
-        output_csv_path = path.replace('.pth', '_output.csv')
-        interpolated_features=[]
-        df = pd.read_csv(output_csv_path)
-        # 对每个点的每五十行数据的feature数组求平均值
-        grouped = df.groupby('label')
-        processed_rows = []
-        steps=25
-        for label, group in grouped:
-            for i in range(0, len(group), steps):  # 每五十行数据分组
-                subset = group.iloc[i:i + steps]
-                avg_feature = np.mean(
-                    np.stack(subset['feature'].apply(
-                    lambda x: np.fromstring(x[1:-1], sep=' ') if isinstance(x, str) else x
-                    )),
-                    axis=0
-                )
-                processed_rows.append({
-                    'label': label,
-                    'true_x': subset['true_x'].iloc[0],
-                    'true_y': subset['true_y'].iloc[0],
-                    'feature': avg_feature
-                })
+    # for path in fake_data_path:
+    #     output_csv_path = path.replace('.pth', '_output.csv')
+    #     interpolated_features=[]
+    #     df = pd.read_csv(output_csv_path)
+    #     # 对每个点的每五十行数据的feature数组求平均值
+    #     grouped = df.groupby('label')
+    #     processed_rows = []
+    #     steps=1
+    #     for label, group in grouped:
+    #         for i in range(0, len(group), steps):  # 每五十行数据分组
+    #             subset = group.iloc[i:i + steps]
+    #             avg_feature = np.mean(
+    #                 np.stack(subset['feature'].apply(
+    #                 lambda x: np.fromstring(x[1:-1], sep=' ') if isinstance(x, str) else x
+    #                 )),
+    #                 axis=0
+    #             )
+    #             processed_rows.append({
+    #                 'label': label,
+    #                 'true_x': subset['true_x'].iloc[0],
+    #                 'true_y': subset['true_y'].iloc[0],
+    #                 'feature': avg_feature
+    #             })
         
-        # 创建新的DataFrame
-        df = pd.DataFrame(processed_rows)
+    #     # 创建新的DataFrame
+    #     df = pd.DataFrame(processed_rows)
         
-        print(f"Data from {output_csv_path}:")
-        print(df.head())
+    #     print(f"Data from {output_csv_path}:")
+    #     print(df.head())
         
-        # todo：现在的插值有个弊端，学不到特征内部的关系
-        # 进行插值
-        df=interpolation(df,nums=100j)
+    #     # todo：现在的插值有个弊端，学不到特征内部的关系
+    #     # 进行插值
+    #     df=interpolation(df,nums=200j)
         
-        # 过滤掉不符合条件的点
-        distance_threshold = 5
-        x_distance_threshold = 2
-        y_distance_threshold = 2
-        filtered_data=[]
-        for _,row in df.iterrows():
-            x,y = row['x'], row['y']
-            x_condition = False
-            y_condition = False
+    #     # 过滤掉不符合条件的点
+    #     distance_threshold = 5
+    #     x_distance_threshold = 2
+    #     y_distance_threshold = 2
+    #     filtered_data=[]
+    #     for _,row in df.iterrows():
+    #         x,y = row['x'], row['y']
+    #         x_condition = False
+    #         y_condition = False
     
-            # 遍历 Y_interpolation_idx,计算当前点与每个点的距离
-            for i in Y_interpolation_idx:
-                matching_row = location_vector[location_vector['idx'] == i]
-                matching_point_coordinates=(matching_row.iloc[0]['true_x'], matching_row.iloc[0]['true_y'])
-                nodes2=(x,y)
-                distance=np.linalg.norm(np.array(matching_point_coordinates)-np.array(nodes2))
-                if not matching_row.empty and abs(matching_row.iloc[0]['true_x']-x) < x_distance_threshold and distance < distance_threshold:
-                    x_condition = True
-                    break
-            for i in X_interpolation_idx:
-                matching_row = location_vector[location_vector['idx'] == i]
-                matching_point_coordinates=(matching_row.iloc[0]['true_x'], matching_row.iloc[0]['true_y'])
-                nodes2=(x,y)
-                distance=np.linalg.norm(np.array(matching_point_coordinates)-np.array(nodes2))
-                if not matching_row.empty and distance < distance_threshold and abs(matching_row.iloc[0]['true_y']-y) < y_distance_threshold:
-                    y_condition = True
-                    break
-            if x_condition or y_condition:
-                filtered_data.append(row)
-        df = pd.DataFrame(filtered_data,columns=['feature', 'x', 'y'])   
-        # 能不能可视化绘制一下目前df里面的点的坐标
-        fig = plt.figure(figsize=(8, 6))
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(df['x'], df['y'], df['feature'].apply(lambda x: x[0]), c='r', marker='o')
-        ax.set_xlabel('X Coordinate') 
-        # 保存图像
-        plt.savefig(savefig_path.replace('.png', f'_{tp}_{sf}.png'))
-        plt.show()
-        df.to_csv(path.replace('.pth', '_interpolated_output.csv'), index=False)
+    #         # 遍历 Y_interpolation_idx,计算当前点与每个点的距离
+    #         for i in Y_interpolation_idx:
+    #             matching_row = location_vector[location_vector['idx'] == i]
+    #             matching_point_coordinates=(matching_row.iloc[0]['true_x'], matching_row.iloc[0]['true_y'])
+    #             nodes2=(x,y)
+    #             distance=np.linalg.norm(np.array(matching_point_coordinates)-np.array(nodes2))
+    #             if not matching_row.empty and abs(matching_row.iloc[0]['true_x']-x) < x_distance_threshold and distance < distance_threshold:
+    #                 x_condition = True
+    #                 break
+    #         for i in X_interpolation_idx:
+    #             matching_row = location_vector[location_vector['idx'] == i]
+    #             matching_point_coordinates=(matching_row.iloc[0]['true_x'], matching_row.iloc[0]['true_y'])
+    #             nodes2=(x,y)
+    #             distance=np.linalg.norm(np.array(matching_point_coordinates)-np.array(nodes2))
+    #             if not matching_row.empty and distance < distance_threshold and abs(matching_row.iloc[0]['true_y']-y) < y_distance_threshold:
+    #                 y_condition = True
+    #                 break
+    #         if x_condition or y_condition:
+    #             filtered_data.append(row)
+    #     df = pd.DataFrame(filtered_data,columns=['feature', 'x', 'y'])   
+    #     # 能不能可视化绘制一下目前df里面的点的坐标
+    #     fig = plt.figure(figsize=(8, 6))
+    #     ax = fig.add_subplot(111, projection='3d')
+    #     # 这里只能从feature里面取出一个值来画图
+    #     ax.scatter(df['x'], df['y'], df['feature'].apply(lambda x: x[1]), c='r', marker='o')
+    #     ax.set_xlabel('X Coordinate') 
+    #     # 保存图像
+    #     plt.savefig(savefig_path.replace('.png', f'_{tp}_{sf}.png'))
+    #     plt.show()
+    #     df.to_csv(path.replace('.pth', '_interpolated_output.csv'), index=False)

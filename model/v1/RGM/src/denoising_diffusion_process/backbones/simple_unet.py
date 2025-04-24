@@ -34,54 +34,6 @@ class Residual(nn.Module):
 
         return self.fn(x, *args, **kwargs) + x
 
-
-# class m_Linear(nn.Module):
-
-#     def __init__(self, size_in, size_out):
-#         super().__init__()
-
-#         self.size_in, self.size_out = size_in, size_out
-
-#         # Creation
-#         self.weights_real = nn.Parameter(torch.randn(size_in, size_out, dtype=torch.float32))
-#         self.weights_imag = nn.Parameter(torch.randn(size_in, size_out, dtype=torch.float32))
-#         self.bias = nn.Parameter(torch.randn(2, size_out, dtype=torch.float32))
-
-#         # Initialization
-#         nn.init.xavier_uniform_(self.weights_real, gain=1)
-#         nn.init.xavier_uniform_(self.weights_imag, gain=1)
-#         nn.init.zeros_(self.bias)
-
-
-#     def swap_real_imag(self, x):
-#         h = x
-
-#         h = h.flip(dims=[-2])   # 256 4 2 8 => 256 4 2 8 实部虚部翻转
-
-#         h = h.transpose(-2, -1) #256 4 2 8 => 256 4 8 2
-
-#         # performs an element-wise multiplication along the last dimension
-#         h = h * torch.tensor([-1, 1]).cuda()
-
-#         h = h.transpose(-2, -1)
-
-#         return h
-
-
-#     def forward(self, x):
-#         h = x
-#         # 256 4 2 4 * 4 8 => 256 4 2 8
-#         h1 = torch.matmul(h, self.weights_real)
-
-#         h2 = torch.matmul(h, self.weights_imag)
-
-#         h2 = self.swap_real_imag(h2)
-
-#         h = h1 + h2
-
-#         h = torch.add(h, self.bias)
-
-#         return h
 class m_Linear(nn.Module):
     def __init__(self, size_in, size_out):
         super().__init__()
@@ -99,7 +51,7 @@ class LinearAttention(nn.Module):
 
     def __init__(self, dim, heads=4, dim_head=32):
         super().__init__()
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head ** -0.5 
         self.heads = heads
         hidden_dim = dim_head * heads
         self.to_qkv = nn.Conv1d(dim, hidden_dim * 3, 1, bias=False)
@@ -112,10 +64,9 @@ class LinearAttention(nn.Module):
         q, k, v = map(lambda t: rearrange(t, 'b (h c) w -> b h c w', h=self.heads), qkv)
         q = q * self.scale  #torch.Size([512, 4, 32, 4])
 
-        k = k.softmax(dim=-1)
-        context = torch.einsum('b h d n, b h e n -> b h d e', k, v)
-
-        out = torch.einsum('b h d e, b h d n -> b h e n', context, q)
+        qk=torch.einsum('b h d n, b h e n -> b h d e', q, k)
+        score=qk.softmax(dim=-1)
+        out = torch.einsum('b h d e, b h d n -> b h e n', score, v)  #torch.Size([512, 4, 32, 4])
         out = rearrange(out, 'b h c w -> b (h c) w', h=self.heads, w=w)
 
         return self.to_out(out)
@@ -215,22 +166,7 @@ class PreNorm(nn.Module):
         x = self.norm(x)
         return self.fn(x)
 
-class multi_channels_linear(nn.Module):
-    def __init__(self,in_dim, out_dim):
-        super().__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-    
-    def forward(self,x):
-        # x: torch.Size([@, in_dim, input_dim])-> torch.Size([@,  in_dim*input_dim])
-        input_dim = x.shape[-1]
-        device=x.device
-        h=x.reshape(-1, self.in_dim * input_dim)
-        h=nn.Linear(self.in_dim * input_dim, self.out_dim*input_dim).to(device)(h)
-        res=h.reshape(-1, self.out_dim, input_dim)
-        # h: torch.Size([@, out_dim, input_dim])
-        return res
-    
+
         
 
 # building block modules for signal (containg location info) and timestep
@@ -244,37 +180,35 @@ class ComplexTimeBlock(nn.Module):
                  mult=2, 
                  norm=True):
         super().__init__()
-
         self.mlp = nn.Sequential(
             nn.GELU(),
             nn.Linear(time_emb_dim, dim)
         ) if exists(time_emb_dim) else None
-        self.ds_conv = nn.Conv1d(dim, dim, 1, padding=0,groups=dim)
-        # self.ds_conv = multi_channels_linear(dim, dim)
+        self.ds_conv = nn.Conv1d(dim, dim, 3, padding=1,groups=dim)
         self.net = nn.Sequential(
             LayerNorm(dim) if norm else nn.Identity(),
             nn.Conv1d(dim, dim_out * mult, 1, padding=0),
             nn.GELU(),
             nn.Conv1d(dim_out * mult, dim_out, 1, padding=0)
             )
-        # self.net = nn.Sequential(
-        #     LayerNorm(dim) if norm else nn.Identity(),
-        #     multi_channels_linear(dim, dim_out * mult),
-        #     nn.GELU(),
-        #     multi_channels_linear(dim_out * mult, dim_out)
-        #     )
+
         self.dim = dim
         self.res_conv = nn.Conv1d(dim, dim_out, 1,padding=0) if dim != dim_out else nn.Identity()
-        # self.res_conv = multi_channels_linear(dim, dim_out) if dim != dim_out else nn.Identity()
         
 
     def forward(self, x, time_emb=None):
-        h = self.ds_conv(x)
+        # h = self.ds_conv(x)
+        h=x.reshape(x.size(0), -1)
+        input_dim = h.size(1)
+        h=nn.Linear(input_dim, input_dim)(h)    # [256,2*4]
 
         if exists(self.mlp):
             assert exists(time_emb), 'time emb must be passed in'
-            condition = self.mlp(time_emb)
-            h = h + rearrange(condition, 'b c -> b c 1')
+            condition = self.mlp(time_emb)  #(256,2)
+            condition=rearrange(condition, 'b d -> b d 1')   # [256,2] => [256,2,1]
+            condition = condition.expand(-1, -1, h.size(2))  # [256,2,1] => [256,2,4]
+            h=h+condition
+            
 
         h = self.net(h)
 
@@ -309,23 +243,27 @@ class UnetComplexBlock(nn.Module):
         #，用于处理时间嵌入。它将时间步长嵌入转换为特征向量，以便在模型的不同层中使用。
         #每个时间步长对应一个 16 维的嵌入向量。
         self.time_mlp = nn.Sequential(
-            SinusoidalPositionEmbeddings(dim),
-            nn.Linear(dim, dim * 4),
-            nn.GELU(),
-            nn.Linear(dim * 4, dim)
-        )
+                SinusoidalPositionEmbeddings(dim*2),
+                nn.Linear(dim * 2, dim),
+                nn.GELU(),
+                nn.Linear(dim, dim * 4),
+                nn.GELU(),
+                nn.Linear(dim * 4, dim)
+            )
 
         self.class_emb = nn.Sequential(
-            nn.Linear(loc_dim, dim), 
-            nn.GELU(),
-            nn.Linear(dim, dim * 4),
-            nn.GELU(),
-            nn.Linear(dim * 4, dim * 4),
-            nn.GELU(),
-            nn.Linear(dim * 4, dim),
-        )
+                nn.LayerNorm(loc_dim),
+                nn.Linear(loc_dim, dim), 
+                nn.GELU(),
+                nn.Linear(dim, dim * 4),
+                nn.GELU(),
+                nn.Linear(dim * 4, dim * 4),
+                nn.GELU(),
+                nn.Linear(dim * 4, dim),
+            )
 
-        self.downs = nn.ModuleList([])
+
+        self.downs = nn.ModuleList([] )
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
 

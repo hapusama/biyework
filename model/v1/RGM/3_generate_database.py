@@ -52,6 +52,7 @@ if __name__ == '__main__':
     loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
     # loaded_fine_tuned_rgm="model\\v1\\output\\2_finetuned_rgm.ckpt"
     loaded_fine_tuned_rgm=r"model\v1\output\rgm_floor3_sf_11_pretrained.ckpt"
+    # loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
     print("\nThe loaded diffusion model: {}\n".format(loaded_fine_tuned_rgm))
@@ -80,7 +81,7 @@ if __name__ == '__main__':
     loc_int_list = []
     # Get unique location IDs from the dataset
     # todo: 写进超参数
-    number_samples_generated=500 
+    number_samples_generated=500
     sf=11
     tp=2
     # 将sf扩维到[number_samples_generated,]的张量

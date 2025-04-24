@@ -28,7 +28,7 @@ num_timesteps: 1000
 schedule: "linear"    # cosine, linear, quadratic, sigmoid
 data_channels: 2      # number of data channels（unet卷积层通道数）
 sf_parameter_path: "model\\v1\\output\\sf_parameters.csv"
-channel_dimension_scale: [1, 2, 4,8,16]
+channel_dimension_scale: [1, 2, 4,8]
 num_epochs_rgm: 100
 batch_size_rgm: 128
 learning_rate_rgm: 0.001

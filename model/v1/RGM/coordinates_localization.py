@@ -31,7 +31,7 @@ if __name__=="__main__":
     test_features = test_df[selected_data_feature].values 
     test_coords = test_df[['true_x','true_y']]
     # 3. 使用 KNN 进行匹配
-    knn = NearestNeighbors(n_neighbors=5, algorithm='kd_tree')
+    knn = NearestNeighbors(n_neighbors=40, algorithm='kd_tree')
     knn.fit(interpolation_features)
     distances, indices = knn.kneighbors(test_features)
     predicted_coords = interpolation_coord.iloc[indices.flatten()].reset_index(drop=True)
@@ -53,5 +53,13 @@ if __name__=="__main__":
 
     # 6. 保存结果为新的 CSV 文件
     results.to_csv("knn_matching_results.csv", index=False)
-
+    # 计算平均误差
+    mean_error = results['error'].mean()
+    print(f"平均误差: {mean_error:.2f} 米")
+    # 计算最大误差
+    max_error = results['error'].max()
+    print(f"最大误差: {max_error:.2f} 米")
+    # 计算最小误差
+    min_error = results['error'].min()
+    print(f"最小误差: {min_error:.2f} 米")
     print("KNN 匹配完成，结果已保存到 knn_matching_results.csv")
