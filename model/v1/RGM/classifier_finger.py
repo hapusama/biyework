@@ -18,8 +18,8 @@ fake_data_pth=r'model\v1\output\floor3_sf_11_fake.pth'
 real_data_pth=r'model\v1\input\finger_sf_11_floor3_dataset.pth'
 lr = 1e-3
 # 优化器的学习率
-valid_size = 0.05
-test_size=0.2
+valid_size = 0.2
+test_size=0.25
 num_epochs = 100
 new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
 model_path_train=r'model\v1\output\classifier_ori.pth'
@@ -64,6 +64,7 @@ if "__main__"==__name__:
                                                                 batch_size,
                                                                 valid_size,
                                                                 test_size)
+    print(f"real_train_loader: {len(real_train_loader)}, real_valid_loader: {len(real_valid_loader)}, real_test_loader: {len(real_test_loader)}")
     # 初始化模型
     model = LocationClassifier(input_dim, num_classes)
     # 定义损失函数和优化器
@@ -81,14 +82,21 @@ if "__main__"==__name__:
                                                                 batch_size, 
                                                                 valid_size, 
                                                                 test_size)
+        # 将real_train_loader的部分数据替换fake_train_loader的部分数据
+        # 这里的real_train_loader和fake_train_loader是两个不同的数据集
+        new_train_loader = torch.utils.data.DataLoader(
+            torch.utils.data.ConcatDataset([real_valid_loader.dataset, train_loader.dataset]),
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=0
+        )
         print(f"train_loader: {len(train_loader)}, valid_loader: {len(valid_loader)}, test_loader: {len(test_loader)}")        
         for epoch in range(num_epochs):
             model.train()
             total_loss = 0
-            for batch_idx,(data_batch_fake,label_int_batch) in enumerate(tqdm(train_loader)):
+            for batch_idx,(data_batch_fake,label_int_batch) in enumerate(tqdm(real_valid_loader)):
                 data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
-                # 在训练循环中添加噪声
-                # data_batch_fake += torch.randn_like(data_batch_fake) * 0.01  # 添加高斯噪声
+
                 optimizer.zero_grad()
                 outputs = model(data_batch_fake)
                 loss = criterion(outputs, label_int_batch)
@@ -101,12 +109,6 @@ if "__main__"==__name__:
             with torch.no_grad():
                 for batch_idx,(data_batch_fake,label_int_batch) in enumerate(real_valid_loader):
                     data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
-                    # 在训练循环中添加噪声
-                    # data_batch_fake += torch.randn_like(data_batch_fake) * 0.01  # 添加高斯噪声
-                    # 随机丢弃部分特征
-                    dropout_mask = torch.rand_like(data_batch_fake) > 0.1  # 90% 的概率保留特征
-                    data_batch_fake *= dropout_mask
-                    # data_batch_fake = data_batch_fake.view(-1, input_dim)
                     outputs = model(data_batch_fake)
                     loss = criterion(outputs, label_int_batch)
                     valid_loss += loss.item()

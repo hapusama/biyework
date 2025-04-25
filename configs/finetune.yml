@@ -24,7 +24,7 @@ config: "configs/finetune.yml"
 ##### New parameters for pre-training rgm #####
 signal_feature_dim: 4           # 因为inputdim太小，做一个线性变化为高纬度，组成channels*signal_feature_dim
 loc_dim: 5             # for location vector x\y\distance\sf\tp
-num_timesteps: 1000
+num_timesteps: 2000
 schedule: "linear"    # cosine, linear, quadratic, sigmoid
 data_channels: 2      # number of data channels（unet卷积层通道数）
 sf_parameter_path: "model\\v1\\output\\sf_parameters.csv"

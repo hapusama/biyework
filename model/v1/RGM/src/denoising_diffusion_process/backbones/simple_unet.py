@@ -53,21 +53,20 @@ class LinearAttention(nn.Module):
         super().__init__()
         self.scale = dim_head ** -0.5 
         self.heads = heads
-        hidden_dim = dim_head * heads
-        self.to_qkv = nn.Conv1d(dim, hidden_dim * 3, 1, bias=False)
-        self.to_out = nn.Conv1d(hidden_dim, dim, 1)
+        hidden_dim = dim_head * heads   #32*4
+        self.to_qkv = nn.Linear(dim, hidden_dim * 3, bias=False)
+        self.to_out = nn.Linear(hidden_dim, dim)
 
 
     def forward(self, x):
-        b, c, w = x.shape
         qkv = self.to_qkv(x).chunk(3, dim=1)
-        q, k, v = map(lambda t: rearrange(t, 'b (h c) w -> b h c w', h=self.heads), qkv)
-        q = q * self.scale  #torch.Size([512, 4, 32, 4])
+        q, k, v = map(lambda t: rearrange(t, 'b (h c) -> b h c', h=self.heads), qkv)
+        q = q * self.scale  #torch.Size([256, 4, 32])
 
-        qk=torch.einsum('b h d n, b h e n -> b h d e', q, k)
-        score=qk.softmax(dim=-1)
-        out = torch.einsum('b h d e, b h d n -> b h e n', score, v)  #torch.Size([512, 4, 32, 4])
-        out = rearrange(out, 'b h c w -> b (h c) w', h=self.heads, w=w)
+        qk = torch.einsum('b h d, b h e -> b h d e', q, k)
+        score = qk.softmax(dim=-1)
+        out = torch.einsum('b h d e, b h e -> b h d', score, v)  # torch.Size([256, 4, 32])
+        out = rearrange(out, 'b h c -> b (h c)', h=self.heads)
 
         return self.to_out(out)
 
@@ -97,52 +96,14 @@ class SinusoidalPositionEmbeddings(nn.Module):
         return embeddings
 
 
-class UpBlock(nn.Module):
-
-    def __init__(self, input_length):
-        super().__init__()
-
-        self.leng = input_length
-        self.up = m_Linear(input_length, input_length * 2)
-
-
-    def forward(self, x):
-        _, ch, _ = x.shape
-        # 这里可以改成直成直接用linear升维就好了，没必要
-
-        x = self.up(x)                                   # (@, ch, 2, dim) => (@, ch, 2, dim * 2)
-        x = x.reshape((-1, ch, self.leng * 2))           # (@, 2, ch, dim * 2) => (@ * 2, ch, dim * 2)
-
-        return x
-    
-
-class DownBlock(nn.Module):
-
-    def __init__(self, input_length):
-        super().__init__()
-
-        self.leng = input_length
-
-        self.down = m_Linear(input_length, input_length // 2)
-
-    def forward(self, x):
-
-        _, ch, _ = x.shape
-
-        x = self.down(x)                                 # (@, ch, 2, dim) => (@, ch, 2, dim // 2)
-        x = x.reshape((-1, ch, self.leng // 2))          # (@, 2, ch, dim // 2) => (@ * 2, ch, dim // 2)
-
-        return x
-
-
 class LayerNorm(nn.Module):
 
     def __init__(self, dim, eps=1e-5):
         # dim are channels 
         super().__init__()
         self.eps = eps
-        self.g = nn.Parameter(torch.ones(1, dim, 1))
-        self.b = nn.Parameter(torch.zeros(1, dim, 1))
+        self.g = nn.Parameter(torch.ones(1, dim))
+        self.b = nn.Parameter(torch.zeros(1, dim))
 
 
     def forward(self, x):
@@ -159,96 +120,70 @@ class PreNorm(nn.Module):
     def __init__(self, dim, fn):
         super().__init__()
         self.fn = fn
-        self.norm = LayerNorm(dim)
-
+        # self.norm = LayerNorm(dim)
+        self.norm=nn.LayerNorm(dim) if isfunction(fn) else fn
 
     def forward(self, x):
         x = self.norm(x)
         return self.fn(x)
 
 
-        
-
-# building block modules for signal (containg location info) and timestep
-class ComplexTimeBlock(nn.Module):
-
-    def __init__(self, 
-                 dim, 
-                 dim_out, 
-                 *, 
-                 time_emb_dim=None, 
-                 mult=2, 
-                 norm=True):
+class newComplexTimeBlock(nn.Module):
+    def __init__(self,length_in,length_out,time_dim=8,norm=True):
         super().__init__()
-        self.mlp = nn.Sequential(
-            nn.GELU(),
-            nn.Linear(time_emb_dim, dim)
-        ) if exists(time_emb_dim) else None
-        self.ds_conv = nn.Conv1d(dim, dim, 3, padding=1,groups=dim)
-        self.net = nn.Sequential(
-            LayerNorm(dim) if norm else nn.Identity(),
-            nn.Conv1d(dim, dim_out * mult, 1, padding=0),
-            nn.GELU(),
-            nn.Conv1d(dim_out * mult, dim_out, 1, padding=0)
-            )
-
-        self.dim = dim
-        self.res_conv = nn.Conv1d(dim, dim_out, 1,padding=0) if dim != dim_out else nn.Identity()
+        self.leng_in = length_in
+        self.leng_out = length_out
+        self.flatten_linear=nn.Linear(length_in, length_in)  # [256,2*4] 空间和特征信息相关联  
         
-
-    def forward(self, x, time_emb=None):
-        # h = self.ds_conv(x)
-        h=x.reshape(x.size(0), -1)
-        input_dim = h.size(1)
-        h=nn.Linear(input_dim, input_dim)(h)    # [256,2*4]
-
-        if exists(self.mlp):
+        self.net = nn.Sequential(
+            nn.LayerNorm(length_in) if norm else nn.Identity(),
+            nn.Linear(length_in, length_in*2),
+            nn.GELU(),
+            nn.Linear(length_in*2, length_out)
+        )
+        self.time_mlp = nn.Sequential(
+            nn.Linear(time_dim, length_in) if time_dim!=length_in else nn.Identity(),
+            nn.GELU(),
+        )
+        self.res_linear = nn.Linear(length_in, length_out) if length_in != length_out else nn.Identity()
+        
+    def forward(self,x,time_emb=None):
+        h=self.flatten_linear(x)
+        if time_emb!=None:
             assert exists(time_emb), 'time emb must be passed in'
-            condition = self.mlp(time_emb)  #(256,2)
-            condition=rearrange(condition, 'b d -> b d 1')   # [256,2] => [256,2,1]
-            condition = condition.expand(-1, -1, h.size(2))  # [256,2,1] => [256,2,4]
-            h=h+condition
-            
-
-        h = self.net(h)
-
-        residual_x = self.res_conv(x)
-
-        return h + residual_x
-
-
+            time_condition =self.time_mlp(time_emb)
+            h=h+time_condition
+        h=self.net(h)
+        res_x=self.res_linear(x)    
+        return h + res_x
+        
 
 ##### Main Model #####
 class UnetComplexBlock(nn.Module):
     #todo: 卷积核的size可能要再根据实际情况定夺一下
     def __init__(self, 
-                 dim, 
+                 dim,   #4
                  loc_dim=7,
                  channels=2,
                  dim_mults=(1, 2, 4, 8),signal_feature_dim=8):
         super().__init__()
         self.p_tx=2
         self.leng = dim # input_dim
-        time_dim = dim
-        # self.signal_linear= nn.Linear(dim, signal_feature_dim) #处理feature_X便于后续进行卷积操作
+        time_dim = dim*2    # todo 写到yml里
 
-        # if dim = 8, [2, 8, 16,32, 64] 2是channels
+        # if dim = 4, [2, 4, 8,16,32] 2是channels
         dims = [channels, *map(lambda m: dim * m, dim_mults)]
 
-        # [(2, 8), (8, 16), (16, 32), (32, 64)]每一层的输入输出维度
+        # [(2, 4), (4, 8), (8, 16), (16, 32)]每一层的输入输出维度
         in_out = list(zip(dims[:-1], dims[1:]))
 
-        # dim * (2 ^ 0), dim * (2 ^ 1), dim * (2 ^ 2), dim * (2 ^ 3): [16, 32, 64, 128] 每一层的特征维度[8, 16, 32, 64]
-        dim_list_sample = [dim * int(math.pow(2, scale))  for scale in range(len(dim_mults))]
         #，用于处理时间嵌入。它将时间步长嵌入转换为特征向量，以便在模型的不同层中使用。
         #每个时间步长对应一个 16 维的嵌入向量。
         self.time_mlp = nn.Sequential(
                 SinusoidalPositionEmbeddings(dim*2),
-                nn.Linear(dim * 2, dim),
+                nn.Linear(dim * 2, dim*4),
                 nn.GELU(),
-                nn.Linear(dim, dim * 4),
-                nn.GELU(),
-                nn.Linear(dim * 4, dim)
+                nn.Linear(dim * 4, dim*2)
             )
 
         self.class_emb = nn.Sequential(
@@ -265,45 +200,34 @@ class UnetComplexBlock(nn.Module):
 
         self.downs = nn.ModuleList([] )
         self.ups = nn.ModuleList([])
-        num_resolutions = len(in_out)
 
-        # [(2, 8), (8, 16), (16, 32), (32, 64)] 
-        for ind, (dim_in, dim_out) in enumerate(in_out):
-            is_last = ind >= (num_resolutions - 1)
-            length_temp = dim_list_sample[ind] if not is_last else None  # [16, 32, 64, 128]
+        in_out=[(8,16),(16,32),(32,64),(64,128)] #todo 后续也写到yml
+        for ind, (length_in, length_out) in enumerate(in_out):
 
             self.downs.append(nn.ModuleList([
-                ComplexTimeBlock(dim_in, dim_out, time_emb_dim=time_dim, norm=(ind!=0)),
-                ComplexTimeBlock(dim_out, dim_out, time_emb_dim=time_dim),
-                Residual(PreNorm(dim_out, LinearAttention(dim_out))),
-                UpBlock(length_temp) if not is_last else nn.Identity()
-            ]))
+                newComplexTimeBlock(length_in, length_out, time_dim=time_dim, norm=(ind!=0)),
+                newComplexTimeBlock(length_out, length_out, time_dim=time_dim),
+                Residual(PreNorm(length_out, LinearAttention(length_out)))]))
 
-        mid_dim = dims[-1]
-        self.mid_block1 = ComplexTimeBlock(mid_dim, mid_dim, time_emb_dim=time_dim)
+        mid_dim = in_out[-1][1] 
+        self.mid_block1 = newComplexTimeBlock(mid_dim, mid_dim, time_dim=time_dim)
         self.mid_attn = Residual(PreNorm(mid_dim, LinearAttention(mid_dim)))
-        self.mid_block2 = ComplexTimeBlock(mid_dim, mid_dim, time_emb_dim=time_dim)
+        self.mid_block2 = newComplexTimeBlock(mid_dim, mid_dim, time_dim=time_dim)
 
-        # [(64,32), (32, 16), (16, 8), (8, 2)]
-        for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):  # ind: 0, 1, 2
-            # is_last will not go to True, always be False
-            is_last = ind >= (num_resolutions - 1)
-            length_temp = dim_list_sample[len(dim_list_sample) - ind - 1] if not is_last else None
+        # [(0, (64, 128)), (1, (32, 64)), (2, (16, 32)), (3, (8, 16))]
+        for ind, (length_in, length_out) in enumerate(reversed(in_out[0:])):  
 
             self.ups.append(nn.ModuleList([
-                ComplexTimeBlock(dim_out * 2, dim_in, time_emb_dim=time_dim),
-                ComplexTimeBlock(dim_in, dim_in, time_emb_dim=time_dim),
-                Residual(PreNorm(dim_in, LinearAttention(dim_in))),
-                DownBlock(length_temp) if not is_last else nn.Identity()
-            ]))
+                newComplexTimeBlock(length_out, length_in, time_dim=time_dim),
+                newComplexTimeBlock(length_in, length_in, time_dim=time_dim),
+                Residual(PreNorm(length_in, LinearAttention(length_in)))]))
 
-        out_dim = channels - 1  # out_dim is channels
-
-        self.final_conv = nn.Sequential(
-            ComplexTimeBlock(dim, dim),
-            nn.Conv1d(dim, out_dim, 1),
+        # 将(batch_size,8)变为(batch_size,1,4)
+        self.final_linear = nn.Sequential(
+            newComplexTimeBlock(dim*2, dim*2),
             nn.GELU(),
-            nn.Linear(dim, dim),  # out_dim is channels
+            nn.Linear(dim*2, dim),  # 8-> 4
+            nn.Unflatten(1, (1, dim))  # Reshape to (batch_size, 1, dim // 2)
         )
 
     def forward(self, feature_x, time, location,sf,tp,true_distance):
@@ -316,28 +240,26 @@ class UnetComplexBlock(nn.Module):
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, dim) => (@, 1, feature_dim)
         # feature_x=self.signal_linear(feature_x)                  # (@ , 1, dim) => (@, 1, signal_feature_dim)
         x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, signal_feature_dim) => (@, 2, signal_feature_dim)
-
+        x=x.reshape(x.size(0), -1)  # (@, 2, signal_feature_dim) => (@, 2*signal_feature_dim)   
+        # (256,8)
         h = []
-        for convnext, convnext2, attn, upsample in self.downs:
+        for convnext, convnext2, attn in self.downs:
             x = convnext(x, t)
             x = convnext2(x, t)
             x = attn(x)
             h.append(x)
-            x = upsample(x)
 
-        x = self.mid_block1(x, t)   # (@ * 2, 128, dim * 8)
-        x = self.mid_attn(x)        # (@ * 2, 128, dim * 8)
-        x = self.mid_block2(x, t)   # (@ * 2, 128, dim * 8)
-
-        for convnext, convnext2, attn, downsample in self.ups:
-            x = torch.cat((x, h.pop()), dim=1)  # R0: (@ * 2, 128 * 2, dim * 8)
-            x = convnext(x, t)               
+        x = self.mid_block1(x, t)   # (@ ,128
+        x = self.mid_attn(x)        # (@ ,128)
+        x = self.mid_block2(x, t)   # (@ ,128)
+        for convnext, convnext2, attn in self.ups:
+            skip_connection = h.pop()
+            x = x + skip_connection  # Combine the skip connection with the current layer output
+            x = convnext(x, t)
             x = convnext2(x, t)
             x = attn(x)
-            x = downsample(x)        
 
-        # (@ * 2, 16, dim) => (@ * 2, 1, dim): (@ * 2, channel, dim)
-        out = self.final_conv(x)
+        out = self.final_linear(x)
 
         return out
 
