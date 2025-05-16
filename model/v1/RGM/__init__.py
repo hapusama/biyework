@@ -22,3 +22,8 @@
 #可能的优化：
 ## 1. generate过程直接生成坐标x,y和floor_id 对应的指纹
 ## 2. unet优化
+import os
+if __name__ == '__main__':
+    current_path=os.getcwd()
+    print(current_path)
+   

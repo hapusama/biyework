@@ -70,8 +70,9 @@ class ComplexDatasetLocs(Dataset):
         for _, row in df.iterrows():
             if pd.notnull(row['x']) and pd.notnull(row['y']) and pd.notnull(row['distance']):
                 mapped_id = int(row['idx'])
+                # vector = torch.tensor([row['x'], row['y'], row['distance'],row['distance_true'],row['cross_wall'],row['cross_center'],row['is_x'],row['is_y']], dtype=torch.float32)
                 vector = torch.tensor([row['x'], row['y'], row['distance'],row['distance_true']], dtype=torch.float32)
-                
+
                 label_features[mapped_id] = vector
          
         return label_features
@@ -92,7 +93,7 @@ class ComplexDatasetLocs(Dataset):
         snr = snr / 12
         # 将label_feature最后一维弹出
         distance_true = label_feature[-1]  # Extract the last element (distance_true)
-        label_feature = label_feature[:-1]  # Remove the last element to make it 3D
+        label_feature = label_feature[:-1]  # Remove the last element to make it 1x3 实际上就是丢掉了true distance
         
         # 将label_feature和snr cat在一起,snr里面包含的是SF和TP
         label_feature = torch.cat((label_feature, snr), dim=0)        # 确保返回的值都是一维张量

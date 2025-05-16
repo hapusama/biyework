@@ -85,9 +85,9 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
 
             # call forward function of DDPM_Sampler Class: 
             # Given approximation of noise z_t in x_t predict x_(t-1)
-            # prediction of next state
             x_t = sampler(x_t, t, z_t)
         print(x_t.shape)
+        
         # 物理模型
         df=pd.read_csv(self.sf_parameters)
         # 读取数据
@@ -104,7 +104,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         rssi_path_loss=self.path_loss_model(log_distance, gamma_Sf, pl_0,tp)
         rssi_path_loss=rssi_path_loss/150
         
-        rate=0
+        rate=0.6          #todo 写进yaml中
         print("rssi_path_loss unique values:", torch.unique(rssi_path_loss))
         # 将 rssi_path_loss 加权到 out 的指定索引位置
         x_t[:, 0, [0, 1,2]] = (1 - rate) * x_t[:, 0, [0, 1,2]] + rate * rssi_path_loss.to(x_t.dtype).unsqueeze(-1)

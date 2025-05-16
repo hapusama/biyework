@@ -52,7 +52,7 @@ if __name__ == '__main__':
     loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
     # loaded_fine_tuned_rgm="model\\v1\\output\\2_finetuned_rgm.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\rgm_floor3_sf_11_pretrained.ckpt"
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v5.ckpt"
+    # loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v5.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
     print("\nThe loaded diffusion model: {}\n".format(loaded_fine_tuned_rgm))
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     loc_int_list = []
     # Get unique location IDs from the dataset
     # todo: 写进超参数
-    number_samples_generated=1500
+    number_samples_generated=600
     sf=11
     tp=2
     # 将sf扩维到[number_samples_generated,]的张量
@@ -98,12 +98,17 @@ if __name__ == '__main__':
         # real_data[0]: [4,]
         match_row= location_vector_df[location_vector_df['location_id'] == loc_idx]   
         x,y,distance,true_distance = location_vector_df[location_vector_df['location_id'] == loc_idx].iloc[:, 1:5].values[0]
+        cross_wall,cross_center,is_x,is_y=location_vector_df[location_vector_df['location_id'] == loc_idx].iloc[:, 5:9].values[0]
         
         loc_int=match_row['idx'].values[0]
         loc_int_tensor = torch.tensor(loc_int).unsqueeze(0).repeat(number_samples_generated)
         x_tensor = torch.tensor(x).unsqueeze(0).repeat(number_samples_generated)
         y_tensor = torch.tensor(y).unsqueeze(0).repeat(number_samples_generated)
         distance_tensor = torch.tensor(distance).unsqueeze(0).repeat(number_samples_generated)
+        cross_wall_tensor = torch.tensor(cross_wall).unsqueeze(0).repeat(number_samples_generated)
+        cross_center_tensor = torch.tensor(cross_center).unsqueeze(0).repeat(number_samples_generated)
+        is_x_tensor = torch.tensor(is_x).unsqueeze(0).repeat(number_samples_generated)
+        is_y_tensor = torch.tensor(is_y).unsqueeze(0).repeat(number_samples_generated)
         
         true_distance=torch.tensor(true_distance.repeat(number_samples_generated))
         
@@ -111,8 +116,14 @@ if __name__ == '__main__':
         x_tensor = x_tensor.unsqueeze(1)  # [number_samples_generated, 1]
         y_tensor = y_tensor.unsqueeze(1)  # [number_samples_generated, 1]
         distance_tensor = distance_tensor.unsqueeze(1)  # [number_samples_generated, 1]
+        cross_wall_tensor = cross_wall_tensor.unsqueeze(1)  # [number_samples_generated, 1]
+        cross_center_tensor = cross_center_tensor.unsqueeze(1)  # [number_samples_generated, 1]
+        is_x_tensor = is_x_tensor.unsqueeze(1)  # [number_samples_generated, 1]
+        is_y_tensor = is_y_tensor.unsqueeze(1)  # [number_samples_generated, 1]
 
         condition = torch.cat((x_tensor, y_tensor, distance_tensor,sf_list,tp_list), dim=1)   # [number_samples_generated, 5]
+
+        # condition = torch.cat((x_tensor, y_tensor, distance_tensor,cross_center_tensor,cross_wall_tensor,is_x_tensor,is_y_tensor,sf_list,tp_list), dim=1)   # [number_samples_generated, 5]
         #将condition转换为浮点型
         condition = condition.float()
         condition=condition.to(device)

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from pykrige.ok import OrdinaryKriging
 from scipy.interpolate import griddata
 input_data_path = "data/input_data.txt" # 这个是到时候用来定位的指纹数据
-fake_data_path= [r"model\v1\output\floor3_sf_11_fake.pth"]   #生成指纹库的路径
+fake_data_path= [r"model\v1\output\floor4_sf_11_fake.pth"]   #生成指纹库的路径
 location_vector_path=r"model\v1\output\location_vector_v3.csv"
 savefig_path = r"model\v1\output\interpolated_feature.png"
 X_interpolation_idx = [0, 1, 2,3,4,13,14,15,16,17]

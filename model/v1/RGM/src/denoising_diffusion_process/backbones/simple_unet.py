@@ -136,7 +136,7 @@ class newComplexTimeBlock(nn.Module):
         self.flatten_linear=nn.Linear(length_in, length_in)  # [256,2*4] 空间和特征信息相关联  
         
         self.net = nn.Sequential(
-            nn.LayerNorm(length_in) if norm else nn.Identity(),
+            nn.Identity(),  # No normalization applied
             nn.Linear(length_in, length_in*2),
             nn.GELU(),
             nn.Linear(length_in*2, length_out)
@@ -201,7 +201,7 @@ class UnetComplexBlock(nn.Module):
         self.downs = nn.ModuleList([] )
         self.ups = nn.ModuleList([])
 
-        in_out=[(8,16),(16,32),(32,64),(64,128)] #todo 后续也写到yml
+        in_out=[(12,16),(16,32),(32,64),(64,128),(128,256)] #todo 后续也写到yml
         for ind, (length_in, length_out) in enumerate(in_out):
 
             self.downs.append(nn.ModuleList([
@@ -240,7 +240,7 @@ class UnetComplexBlock(nn.Module):
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, dim) => (@, 1, feature_dim)
         # feature_x=self.signal_linear(feature_x)                  # (@ , 1, dim) => (@, 1, signal_feature_dim)
         x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, signal_feature_dim) => (@, 2, signal_feature_dim)
-        x=x.reshape(x.size(0), -1)  # (@, 2, signal_feature_dim) => (@, 2*signal_feature_dim)   
+        x=x.reshape(x.size(0), -1)                               # (@, 2, signal_feature_dim) => (@, 2*signal_feature_dim)   
         # (256,8)
         h = []
         for convnext, convnext2, attn in self.downs:

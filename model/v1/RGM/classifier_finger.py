@@ -8,21 +8,21 @@ from src.dataset import RealorFakeDataset
 
 # 模型配置
 batch_size = 256
-input_dim=6
+input_dim=8
 mode='generate'
 # mode='test'
 # mode='original'
 num_classes=21
 # 批次的大小
-fake_data_pth=r'model\v1\output\floor3_sf_11_fake.pth'
-real_data_pth=r'model\v1\input\finger_sf_11_floor3_dataset.pth'
+fake_data_pth=r'model\v1\output\floor4_sf_11_fake.pth'
+real_data_pth=r'model\v1\input\finger_sf_11_floor4_dataset.pth'
 lr = 1e-3
 # 优化器的学习率
-valid_size = 0.2
+valid_size = 0.05
 test_size=0.25
-num_epochs = 100
+num_epochs = 200
 new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
-model_path_train=r'model\v1\output\classifier_ori.pth'
+model_path_train=r'model\v1\output\classifier_floor3.pth'
 location_vector_path = r'model\v1\output\location_vector_v3.csv'
 # todo 最后重新设置一个总共的yml，尽量一到两个，把参数全都统一写入yml中
 from tqdm import tqdm
@@ -30,6 +30,7 @@ from tqdm import tqdm
 class LocationClassifier(nn.Module):
     def __init__(self, input_dim, num_classes):
         super(LocationClassifier, self).__init__()
+        #这里的归一化层不能扔
         self.fc = nn.Sequential(
             nn.Linear(input_dim, 64),
             nn.BatchNorm1d(64),
@@ -82,7 +83,7 @@ if "__main__"==__name__:
                                                                 batch_size, 
                                                                 valid_size, 
                                                                 test_size)
-        # 将real_train_loader的部分数据替换fake_train_loader的部分数据
+
         # 这里的real_train_loader和fake_train_loader是两个不同的数据集
         new_train_loader = torch.utils.data.DataLoader(
             torch.utils.data.ConcatDataset([real_valid_loader.dataset, train_loader.dataset]),
@@ -94,7 +95,7 @@ if "__main__"==__name__:
         for epoch in range(num_epochs):
             model.train()
             total_loss = 0
-            for batch_idx,(data_batch_fake,label_int_batch) in enumerate(tqdm(real_valid_loader)):
+            for batch_idx,(data_batch_fake,label_int_batch) in enumerate(tqdm(new_train_loader)):
                 data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
 
                 optimizer.zero_grad()
@@ -107,7 +108,7 @@ if "__main__"==__name__:
             # 用真实数据集测试模型
             valid_loss = 0
             with torch.no_grad():
-                for batch_idx,(data_batch_fake,label_int_batch) in enumerate(real_valid_loader):
+                for batch_idx,(data_batch_fake,label_int_batch) in enumerate(valid_loader):
                     data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
                     outputs = model(data_batch_fake)
                     loss = criterion(outputs, label_int_batch)
@@ -135,17 +136,19 @@ if "__main__"==__name__:
                 total += label_int_batch.size(0)
                 # 把匹配成功的点打印出来
                 matched_labels = label_int_batch[predicted == label_int_batch]
-                print(f"Matched Labels: {matched_labels.cpu().numpy()}")
+                # print(f"Matched Labels: {matched_labels.cpu().numpy()}")
                 # 把匹配失败的点打印出来，并且将其对应的预测值也打印出来
                 mismatched_labels = label_int_batch[predicted != label_int_batch]
                 mismatched_predictions = predicted[predicted != label_int_batch]
-                print(f"Mismatched Labels: {mismatched_labels.cpu().numpy()}, Predictions: {mismatched_predictions.cpu().numpy()}")
+                # print(f"Mismatched Labels: {mismatched_labels.cpu().numpy()}, Predictions: {mismatched_predictions.cpu().numpy()}")
                 
                 correct += (predicted == label_int_batch).sum().item()
-                # 并且打印每一个label预测正确的次数
-                for i in range(num_classes):
-                    correct_count = (predicted[label_int_batch == i] == i).sum().item()
-                    print(f"Label {i} Correct Count: {correct_count}")
+                # # 并且打印每一个label预测正确的次数
+                # for i in range(num_classes):
+                #     correct_count = (predicted[label_int_batch == i] == i).sum().item()
+                #     print(f"Label {i} Correct Count: {correct_count}")
+                
+                
         accuracy = correct / total
         print(f"Test Accuracy: {accuracy:.4f}")
         loc_df=pd.read_csv(location_vector_path)
@@ -161,7 +164,23 @@ if "__main__"==__name__:
             # recall = true_positive / (true_positive + false_negative) if (true_positive + false_negative) > 0 else 0
             loc_label=loc_df[loc_df['idx']==i]['location_id'].values[0]
             print(f"Label {loc_label} Recall: {recall:.4f}")
-            
+            # 计算定位误差（假设label间隔为5，误差为预测label与真实label的距离*5的平均值）
+            # 只统计当前label为i的样本
+            if (label_int_batch == i).sum().item() > 0:
+                pred_labels = predicted[label_int_batch == i]
+                true_labels = label_int_batch[label_int_batch == i]
+                # 误差 = |预测label - 真实label| * 5
+                loc_error = (pred_labels - true_labels).abs().float() * 5
+                mean_loc_error = loc_error.mean().item()
+                print(f"Label {loc_label} Mean Location Error: {mean_loc_error:.2f}")
+            else:
+                print(f"Label {loc_label} Mean Location Error: N/A")
+        if total > 0:
+            all_loc_error = (predicted - label_int_batch).abs().float() * 5
+            mean_all_loc_error = all_loc_error.mean().item()
+            print(f"All Mean Location Error: {mean_all_loc_error:.2f}")
+        else:
+            print("No test samples to calculate overall mean location error.")
         # # 计算每一个点预测的精确率
         # for i in range(num_classes):
         #     # 计算每一个点预测的精确率
@@ -212,11 +231,9 @@ if "__main__"==__name__:
                 total += label_int_batch.size(0)
                 # 把匹配成功的点打印出来
                 matched_labels = label_int_batch[predicted == label_int_batch]
-                print(f"Matched Labels: {matched_labels.cpu().numpy()}")
                 # 把匹配失败的点打印出来，并且将其对应的预测值也打印出来
                 mismatched_labels = label_int_batch[predicted != label_int_batch]
                 mismatched_predictions = predicted[predicted != label_int_batch]
-                print(f"Mismatched Labels: {mismatched_labels.cpu().numpy()}, Predictions: {mismatched_predictions.cpu().numpy()}")
                 
                 correct += (predicted == label_int_batch).sum().item()
                 # 并且打印每一个label预测正确的次数
@@ -235,7 +252,26 @@ if "__main__"==__name__:
             loc_df=pd.read_csv(location_vector_path)
             loc_label=loc_df[loc_df['idx']==i]['location_id'].values[0]
             # recall = true_positive / (true_positive + false_negative) if (true_positive + false_negative) > 0 else 0
+                        # 计算定位误差（假设label间隔为5，误差为预测label与真实label的距离*5的平均值）
+            # 只统计当前label为i的样本
+            if (label_int_batch == i).sum().item() > 0:
+                pred_labels = predicted[label_int_batch == i]
+                true_labels = label_int_batch[label_int_batch == i]
+                # 误差 = |预测label - 真实label| * 5
+                loc_error = (pred_labels - true_labels).abs().float() * 5
+                mean_loc_error = loc_error.mean().item()
+                print(f"Label {loc_label} Mean Location Error: {mean_loc_error:.2f}")
+            else:
+                print(f"Label {loc_label} Mean Location Error: N/A")
             print(f"Label {loc_label} Recall: {recall:.4f}")
+        # 计算每个点一共的误差 = |预测label - 真实label| * 5平均值
+        # 计算所有点的平均定位误差 = |预测label - 真实label| * 5 的平均值
+        if total > 0:
+            all_loc_error = (predicted - label_int_batch).abs().float() * 5
+            mean_all_loc_error = all_loc_error.mean().item()
+            print(f"All Mean Location Error: {mean_all_loc_error:.2f}")
+        else:
+            print("No test samples to calculate overall mean location error.")
     if mode=='test':
         # 加载模型
         model.load_state_dict(torch.load(model_path_train))
