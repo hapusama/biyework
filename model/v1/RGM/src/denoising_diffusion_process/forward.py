@@ -68,9 +68,9 @@ class GaussianForwardProcess(ForwardModel):
     @torch.no_grad()
     def forward(self, x_0, t, return_noise=False):
         """
-            Get noisy sample at t given x_0
+            给定 x_0，在时刻 t 获取带噪声的样本
             x_0: torch.Size([128, 2, 256]), t: torch.Size([128])
-            q(x_t | x_0)=N(x_t; alphas_cumprod_sqrt(t)*x_0, 1-alpha_cumprod(t)*I)
+            q(x_t | x_0)=N(x_t; alphas_cumprod_sqrt(t)*x_0, (1-alpha_cumprod(t))*I)
         """
 
         assert (t < self.num_timesteps).all()
@@ -93,9 +93,7 @@ class GaussianForwardProcess(ForwardModel):
 
     @torch.no_grad()
     def step(self, x_t, t, return_noise=False):
-        """
-            Get next sample in the process
-            
+        """ 
             q(x_t | x_t-1)=N(x_t; alphas_sqrt(t)*x_0,betas(t)*I)
         """
 
@@ -109,7 +107,6 @@ class GaussianForwardProcess(ForwardModel):
         
         if not return_noise:
             return output
-        
         else:
             return output, noise
         

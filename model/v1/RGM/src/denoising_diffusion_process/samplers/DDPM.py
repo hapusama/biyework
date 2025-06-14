@@ -41,15 +41,15 @@ class DDPM_Sampler(nn.Module):
     @torch.no_grad()
     def step(self, x_t, t, z_t):
         """
-            Given approximation of noise z_t in x_t predict x_(t-1)
+            给定x_t中的噪声近似z_t，预测x_(t-1)
         """
         
         assert (t < self.num_timesteps).all()
         
-        # 2. Approximate Distribution of Previous Sample in the chain 
+        # 2. 近似链中前一个样本的分布
         mean_pred, std_pred = self.posterior_params(x_t, t, z_t)
         
-        # 3. Sample from the distribution 采样噪声
+        # 3. 从分布中采样噪声
         z = torch.randn_like(x_t) if any(t > 0) else torch.zeros_like(x_t)
         
         return mean_pred + std_pred * z

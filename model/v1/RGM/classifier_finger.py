@@ -9,18 +9,18 @@ from src.dataset import RealorFakeDataset
 # 模型配置
 batch_size = 256
 input_dim=8
-mode='generate'
+# mode='generate'
 # mode='test'
-# mode='original'
+mode='original'
 num_classes=21
 # 批次的大小
 fake_data_pth=r'model\v1\output\floor4_sf_11_fake.pth'
-real_data_pth=r'model\v1\input\finger_sf_11_floor4_dataset.pth'
+real_data_pth=r'model\v1\input\finger_sf_11_floor5_dataset.pth'
 lr = 1e-3
 # 优化器的学习率
 valid_size = 0.05
 test_size=0.25
-num_epochs = 200
+num_epochs = 100
 new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
 model_path_train=r'model\v1\output\classifier_floor3.pth'
 location_vector_path = r'model\v1\output\location_vector_v3.csv'
@@ -52,6 +52,21 @@ class LocationClassifier(nn.Module):
             nn.ReLU(),
             nn.Linear(32, num_classes)
         )
+        # self.fc = nn.Sequential(
+        #     nn.Linear(input_dim, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 128),
+        #     nn.ReLU(),
+        #     nn.Linear(128, 256),
+        #     nn.ReLU(),
+        #     nn.Linear(256, 128),
+        #     nn.ReLU(),
+        #     nn.Linear(128, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 32),
+        #     nn.ReLU(),
+        #     nn.Linear(32, num_classes)
+        # )
     
     def forward(self, x):
         return self.fc(x)
@@ -272,6 +287,30 @@ if "__main__"==__name__:
             print(f"All Mean Location Error: {mean_all_loc_error:.2f}")
         else:
             print("No test samples to calculate overall mean location error.")
+            
+        # 根据每一个点的recall率，画一个柱状图，横坐标为每个点的编号，纵坐标为召回率
+        import matplotlib.pyplot as plt
+
+        recalls = []
+        loc_labels = []
+        for i in range(num_classes):
+            true_positive = (predicted[label_int_batch == i] == i).sum().item()
+            nums = (label_int_batch == i).sum().item()
+            recall = true_positive / nums if nums > 0 else 0
+            recalls.append(recall)
+            loc_df = pd.read_csv(location_vector_path)
+            loc_label = loc_df[loc_df['idx'] == i]['location_id'].values[0]
+            loc_labels.append(str(loc_label))
+
+        plt.figure(figsize=(12, 6))
+        plt.bar(loc_labels, recalls)
+        plt.xlabel('Location ID')
+        plt.ylabel('Recall')
+        plt.title('Recall per Location')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.show()
+        plt.savefig(r'recall_per_location.png')
     if mode=='test':
         # 加载模型
         model.load_state_dict(torch.load(model_path_train))

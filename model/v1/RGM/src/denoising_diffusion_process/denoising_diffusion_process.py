@@ -81,10 +81,10 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         for i in tqdm(it, desc='diffusion sampling', total=num_timesteps) if verbose else it:
 
             t = torch.full((b,), i, device=device, dtype=torch.long)
-            z_t = self.model(x_t, t, condition,sf,tp,true_distance)   # prediction of noise
+            z_t = self.model(x_t, t, condition,sf,tp,true_distance)   # 噪声预测
 
-            # call forward function of DDPM_Sampler Class: 
-            # Given approximation of noise z_t in x_t predict x_(t-1)
+            # 调用DDPM_Sampler类的forward函数：
+            # 给定x_t中的噪声近似z_t，预测x_(t-1)
             x_t = sampler(x_t, t, z_t)
         print(x_t.shape)
         
@@ -107,7 +107,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         rate=0.6          #todo 写进yaml中
         print("rssi_path_loss unique values:", torch.unique(rssi_path_loss))
         # 将 rssi_path_loss 加权到 out 的指定索引位置
-        x_t[:, 0, [0, 1,2]] = (1 - rate) * x_t[:, 0, [0, 1,2]] + rate * rssi_path_loss.to(x_t.dtype).unsqueeze(-1)
+        x_t[:, 0, [0, 1,2,3]] = (1 - rate) * x_t[:, 0, [0, 1,2,3]] + rate * rssi_path_loss.to(x_t.dtype).unsqueeze(-1)
    
         return x_t
 
@@ -130,7 +130,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
             x = x.view(b, h, w)
         b,h,w = x.shape
         device = x.device
-        #随机生成numsteps以内 256个不同整数
+        
         t = torch.randint(0, self.forward_process.num_timesteps, (b,), device=device).long()
 
         # call forward function of GaussianForwardProcess Class:  
