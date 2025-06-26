@@ -8,14 +8,14 @@ from src.dataset import RealorFakeDataset
 
 # 模型配置
 batch_size = 256
-input_dim=8
-# mode='generate'
+input_dim=6
+mode='generate'
 # mode='test'
-mode='original'
+# mode='original'
 num_classes=21
 # 批次的大小
-fake_data_pth=r'model\v1\output\floor4_sf_11_fake.pth'
-real_data_pth=r'model\v1\input\finger_sf_11_floor5_dataset.pth'
+fake_data_pth=r'model\v1\output\floor3_sf_11_fake.pth'
+real_data_pth=r'model\v1\input\finger_sf_11_floor3_dataset.pth'
 lr = 1e-3
 # 优化器的学习率
 valid_size = 0.05
@@ -110,7 +110,7 @@ if "__main__"==__name__:
         for epoch in range(num_epochs):
             model.train()
             total_loss = 0
-            for batch_idx,(data_batch_fake,label_int_batch) in enumerate(tqdm(new_train_loader)):
+            for batch_idx,(data_batch_fake,label_int_batch) in enumerate(tqdm(train_loader)):
                 data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
 
                 optimizer.zero_grad()
@@ -149,20 +149,7 @@ if "__main__"==__name__:
                 outputs = model(data_batch_real)
                 _, predicted = torch.max(outputs.data, 1)
                 total += label_int_batch.size(0)
-                # 把匹配成功的点打印出来
-                matched_labels = label_int_batch[predicted == label_int_batch]
-                # print(f"Matched Labels: {matched_labels.cpu().numpy()}")
-                # 把匹配失败的点打印出来，并且将其对应的预测值也打印出来
-                mismatched_labels = label_int_batch[predicted != label_int_batch]
-                mismatched_predictions = predicted[predicted != label_int_batch]
-                # print(f"Mismatched Labels: {mismatched_labels.cpu().numpy()}, Predictions: {mismatched_predictions.cpu().numpy()}")
-                
                 correct += (predicted == label_int_batch).sum().item()
-                # # 并且打印每一个label预测正确的次数
-                # for i in range(num_classes):
-                #     correct_count = (predicted[label_int_batch == i] == i).sum().item()
-                #     print(f"Label {i} Correct Count: {correct_count}")
-                
                 
         accuracy = correct / total
         print(f"Test Accuracy: {accuracy:.4f}")

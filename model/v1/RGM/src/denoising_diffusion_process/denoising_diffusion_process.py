@@ -97,17 +97,17 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
             print("没有找到对应的SF参数，请检查输入的SF值。")
             raise ValueError("没有找到对应的SF参数，请检查输入的SF值。")
         
-        pl_0 = torch.tensor(rows['pl_0'].values, device=true_distance.device, dtype=true_distance.dtype)
-        gamma_Sf = torch.tensor(rows['gamma_sf'].values, device=true_distance.device, dtype=true_distance.dtype)
-        log_distance = torch.log10(true_distance)
+        # pl_0 = torch.tensor(rows['pl_0'].values, device=true_distance.device, dtype=true_distance.dtype)
+        # gamma_Sf = torch.tensor(rows['gamma_sf'].values, device=true_distance.device, dtype=true_distance.dtype)
+        # log_distance = torch.log10(true_distance)
         
-        rssi_path_loss=self.path_loss_model(log_distance, gamma_Sf, pl_0,tp)
-        rssi_path_loss=rssi_path_loss/150
+        # rssi_path_loss=self.path_loss_model(log_distance, gamma_Sf, pl_0,tp)
+        # rssi_path_loss=rssi_path_loss/150
         
-        rate=0.6          #todo 写进yaml中
-        print("rssi_path_loss unique values:", torch.unique(rssi_path_loss))
+        # rate=0          #todo 写进yaml中
+        # print("rssi_path_loss unique values:", torch.unique(rssi_path_loss))
         # 将 rssi_path_loss 加权到 out 的指定索引位置
-        x_t[:, 0, [0, 1,2,3]] = (1 - rate) * x_t[:, 0, [0, 1,2,3]] + rate * rssi_path_loss.to(x_t.dtype).unsqueeze(-1)
+        # x_t[:, 0, [0, 1,2,3]] = (1 - rate) * x_t[:, 0, [0, 1,2,3]] + rate * rssi_path_loss.to(x_t.dtype).unsqueeze(-1)
    
         return x_t
 
@@ -138,9 +138,7 @@ class DenoisingDiffusionConditionalProcess(nn.Module):
         output_noisy, noise = self.forward_process(x, t, return_noise=True)
 
         noise_hat = self.model(output_noisy, t, condition,sf,tp,true_distance)
-
+        
         # apply loss    todo: 把mse换成交叉熵函数
         return self.loss_fn(noise, noise_hat)
-    
-
     

@@ -1,0 +1,249 @@
+import pandas as pd
+import os
+import numpy as np
+import torch
+# 定义固定列名
+fixed_columns = ['hdok', 'plok', 'none', 'nums', 'totalNums', 'average_rssi', 'snr', 'sf', 'tp', 'serial_size']
+save_file_path= os.path.join(os.getcwd(), 'data', 'processedData')
+def apply_kalman_filter(row, rssi_columns):
+    rssi_values = row[rssi_columns].astype(float).values  # 转换为浮点数
+    if len(rssi_values) > 0:  # 确保有数据可以进行滤波
+        n_iter = len(rssi_values)
+        sz = (n_iter,)
+        Q = 1e-5  # process variance
+
+        xhat = np.zeros(sz)
+        P = np.zeros(sz)
+        xhatminus = np.zeros(sz)
+        Pminus = np.zeros(sz)
+        K = np.zeros(sz)
+
+        R = 0.1 ** 2  # estimate of measurement variance
+
+        xhat[0] = rssi_values[0]
+        P[0] = 1.0
+
+        for k in range(1, n_iter):
+            xhatminus[k] = xhat[k - 1]
+            Pminus[k] = P[k - 1] + Q
+
+            K[k] = Pminus[k] / (Pminus[k] + R)
+            xhat[k] = xhatminus[k] + K[k] * (rssi_values[k] - xhatminus[k])
+            P[k] = (1 - K[k]) * Pminus[k]
+
+        row[rssi_columns[:len(xhat)]] = xhat
+    return row
+
+#将txt文件全都转化成csv文件
+def txt_to_csv(file_path):
+    current_data_path = os.path.join(os.getcwd(), 'data', 'rawData')
+    file_path_copy=file_path
+    file_path = os.path.join(current_data_path, file_path)
+    files = os.listdir(file_path)
+    
+    # files: /data/rawData/{file_path}  
+    for folder in files:
+        # folder_path: ..../files/SF_
+        folder_path = os.path.join(file_path, folder)
+        if os.path.isdir(folder_path):
+            txt_files = os.listdir(folder_path)
+            for txt_file in txt_files:
+                if txt_file.endswith('.txt'):
+                    with open(os.path.join(folder_path, txt_file), 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                    data = []
+               
+                    for line in lines:
+                        if line.startswith('HDOK') or line.startswith('PLOK'):
+                            line = line.strip().split()
+                            data.append(line)
+                    if data:
+                        serial_size = int(data[0][9])
+                        for i in range(len(data)):
+                            if len(data[i]) > len(fixed_columns) + serial_size:
+                                data[i] = data[i][:len(fixed_columns) + serial_size]
+                        columns = fixed_columns + [f'rssi_{i}' for i in range(serial_size)]
+                        columns.append('location_id')
+                        for i in range(len(data)):
+                            data[i].append(txt_file.replace('.txt', '').replace('.0', ''))
+                        df = pd.DataFrame(data, columns=columns)
+                        rssi_columns = [col for col in df.columns if col.startswith('rssi_') and col != 'rssi_variance' and col != 'rssi_skewness' and col != 'rssi_kurtosis']
+                        df = df.apply(lambda row: apply_kalman_filter(row, rssi_columns), axis=1)
+                        augmented_data = []
+                        for _, row in df.iterrows():
+                            rssi_values = row[rssi_columns].astype(float).values
+                            for _ in range(20):
+                                noise = np.random.normal(0, 1, size=rssi_values.shape)
+                                augmented_rssi = rssi_values + noise
+                                augmented_row = row.copy()
+                                augmented_row[rssi_columns] = augmented_rssi
+                                augmented_data.append(augmented_row)
+                        augmented_df = pd.DataFrame(augmented_data, columns=df.columns)
+                        df = pd.concat([df, augmented_df], ignore_index=True)
+                        df[rssi_columns] = df[rssi_columns].dropna().apply(pd.to_numeric, errors='coerce')
+                        df['realtime_average_rssi'] = df[rssi_columns].mean(axis=1)
+                        columns.append('realtime_average_rssi')
+                        df['median_rssi'] = df[rssi_columns].median(axis=1)
+                        columns.append('median_rssi')
+                        df['mode_rssi'] = df[rssi_columns].mode(axis=1)[0]
+                        columns.append('mode_rssi')
+                        def calculate_variance_without_outliers(row):
+                            rssi_values = row[rssi_columns].astype(float).values
+                            return np.var(rssi_values)
+                        df['rssi_variance'] = df.apply(calculate_variance_without_outliers, axis=1)
+                        columns.append('rssi_variance')
+                        def calculate_skewness(row):
+                            rssi_values = row[rssi_columns].astype(float).values
+                            return pd.Series(rssi_values).skew()
+                        df['rssi_skewness'] = df.apply(calculate_skewness, axis=1)
+                        def calculate_kurtosis(row):
+                            rssi_values = row[rssi_columns].astype(float).values
+                            return pd.Series(rssi_values).kurtosis()
+                        df['rssi_kurtosis'] = df.apply(calculate_kurtosis, axis=1)
+                        save_folder_path = os.path.join(save_file_path, file_path_copy)
+                        save_folder_path=os.path.join(save_folder_path, folder)
+                        if not os.path.exists(save_folder_path):
+                            os.makedirs(save_folder_path)
+                        df.to_csv(os.path.join(save_folder_path, txt_file.replace('.txt', '.csv')), index=False)
+                        print(f"文件 {txt_file} 转换成功")
+#将每一层的CSV文件合并成一个CSV文件为 all_data.csv                        
+def csv_to_csv(file_floor):
+    path_load='data/processedData'+ os.sep + file_floor
+    new_file_save='data/processedData' + os.sep + file_floor + os.sep + 'all_data.csv'
+    if os.path.isdir(path_load):
+        sf_files = os.listdir(path_load)
+        all_data=pd.DataFrame() #某一层下所有SF的数据
+        for sf_file in sf_files:
+            sf_path=os.path.join(path_load,sf_file)
+            if os.path.isdir(sf_path):
+                csv_files=os.listdir(sf_path)
+                for csv_file in csv_files:
+                    if csv_file.endswith('.csv') and csv_file != 'all_data_new.csv' and csv_file != 'all_data.csv':
+                        name = csv_file.replace('.csv', '')
+                    temp_df=pd.read_csv(os.path.join(sf_path,csv_file))
+                    temp_df['location_id'] = name
+                    temp_df = temp_df[['realtime_average_rssi', 'average_rssi', 'rssi_variance', 'snr', 'median_rssi', 'mode_rssi', 'rssi_skewness', 'rssi_kurtosis', 'sf', 'tp', 'location_id']]
+                    all_data=pd.concat([all_data,temp_df], ignore_index=True)
+                    all_data['location_id'] = all_data['location_id'].astype(str).str.replace('.0', '', regex=False)
+                    all_data.loc[all_data['location_id'].str.isnumeric(), 'location_id'] = all_data.loc[all_data['location_id'].str.isnumeric(), 'location_id'].astype(int)
+       
+        all_data=all_data.dropna()
+        all_data=all_data.drop_duplicates()
+        all_data.to_csv(new_file_save, index=False)
+        
+# 将all_data.csv转换为pth文件
+def csv_to_pth(
+    floor_id,
+    pretrain_name='pretrain.pth',
+    finetune_name='finetune.pth',
+    test_name='test.pth',
+    finger_name='finger.pth',
+    pretrain_sf=[7,8,9,10,11,12],
+    finetune_sf=[7,8,9,10,11,12],
+    test_sf=[7,8,9,10,11,12],
+    location_vector_path=r'model\v1\output\location_vector_v3.csv',
+    max_pretrain=2000,
+    max_finetune=500,
+    max_test=200,
+    times=1
+):
+    # 读取CSV数据
+    csv_file = os.path.join(save_file_path, floor_id, 'all_data.csv')
+    df = pd.read_csv(csv_file)
+
+    # 读取location_vector
+    location_df = pd.read_csv(location_vector_path)
+    location_id_to_idx = dict(zip(location_df['location_id'], location_df['idx']))
+
+    # 映射location_id
+    df['location_id'] = df['location_id'].map(location_id_to_idx)
+    df = df.dropna(subset=['location_id'])
+
+    # 转换数据类型
+    df = df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+    # 特征列
+    # data_features = ['average_rssi','median_rssi','mode_rssi','rssi_skewness','rssi_kurtosis', "snr"] * times
+    data_features = ['average_rssi', 'median_rssi', 'mode_rssi', "snr"] * times
+    
+    # 将df的data_features特征列进行归一化
+    for feature in data_features:
+        if feature in df.columns:
+            df[feature] = (df[feature] - df[feature].mean()) / df[feature].std()+1e-3  # 防止除以0
+    # 数据集划分
+    pretrain_df = df[df['sf'].isin(pretrain_sf)]
+    pretrain_df = pretrain_df.groupby('location_id', group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_pretrain), random_state=42))
+    remaining_df = df.drop(pretrain_df.index)
+
+    finetune_df = remaining_df[remaining_df['sf'].isin(finetune_sf)]
+    finetune_df = finetune_df.groupby('location_id', group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_finetune), random_state=42))
+    remaining_df = remaining_df.drop(finetune_df.index)
+
+    test_df = remaining_df[remaining_df['sf'].isin(test_sf)]
+    test_df = test_df.groupby('location_id', group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_test), random_state=42))
+    remaining_df = remaining_df.drop(test_df.index)
+    # 检查重叠
+    assert len(set(pretrain_df.index) & set(finetune_df.index)) == 0
+    assert len(set(pretrain_df.index) & set(test_df.index)) == 0
+    assert len(set(finetune_df.index) & set(test_df.index)) == 0
+
+    # 保存pth
+    save_pth = 'model\\v1\\input'+os.sep+pretrain_name
+    torch.save({
+        'rssi': torch.tensor(pretrain_df[data_features].values, dtype=torch.float32),
+        'sf': torch.tensor(pretrain_df["sf"].values, dtype=torch.float32),
+        'tp': torch.tensor(pretrain_df['tp'].values, dtype=torch.float32),
+        'snr': torch.tensor(pretrain_df[['sf', 'tp']].values, dtype=torch.float32),
+        'label': torch.tensor(pretrain_df['location_id'].values, dtype=torch.int64)
+    }, save_pth)
+
+    finetune_name='model\\v1\\input' + os.sep + finetune_name
+    torch.save({
+        'rssi': torch.tensor(finetune_df[data_features].values, dtype=torch.float32),
+        'sf': torch.tensor(finetune_df["sf"].values, dtype=torch.float32),
+        'tp': torch.tensor(finetune_df['tp'].values, dtype=torch.float32),
+        'snr': torch.tensor(finetune_df[['sf', 'tp']].values, dtype=torch.float32),
+        'label': torch.tensor(finetune_df['location_id'].values, dtype=torch.int64)
+    }, finetune_name)
+    
+    test_name='model\\v1\\input' + os.sep + test_name
+    torch.save({
+        'rssi': torch.tensor(test_df[data_features].values, dtype=torch.float32),
+        'sf': torch.tensor(test_df["sf"].values, dtype=torch.float32),
+        'tp': torch.tensor(test_df['tp'].values, dtype=torch.float32),
+        'snr': torch.tensor(test_df[['sf', 'tp']].values, dtype=torch.float32),
+        'label': torch.tensor(test_df['location_id'].values, dtype=torch.int64)
+    }, test_name)
+    # finger数据集
+    finger_pth_path = 'model\\v1\\input' + os.sep + finger_name
+    torch.save({
+        'features': torch.tensor(
+            np.concatenate(
+                [pretrain_df[data_features].values, (pretrain_df[['sf', 'tp']].values / 12)], axis=1
+            ), dtype=torch.float32
+        ),
+        'label': torch.tensor(pretrain_df['location_id'].values, dtype=torch.int64)
+    }, finger_pth_path)
+
+if __name__ == "__main__":
+    # txt_to_csv(f"FLOOR3")
+    # csv_to_csv(f"FLOOR3")
+    csv_to_pth(f"FLOOR3",pretrain_name="floor3_sf_11_pretrain_dataset.pth",finger_name="finger_sf_11_floor3_dataset.pth",pretrain_sf=[11])
+    
+    # 验证生成的pth数据集
+    pretrain_pth=torch.load('model\\v1\\input\\floor3_sf_11_pretrain_dataset.pth')
+    rssi = pretrain_pth['rssi']
+    x_t = torch.tensor([[0, 0, 0, 0, 0, 0]], dtype=torch.float32)
+    t=10
+    z = torch.randn_like(x_t) 
+    print(z)
+    for i in range(rssi.shape[1]):
+        print(f"Dimension {i}: min={rssi[:, i].min().item()}, max={rssi[:, i].max().item()}")
+        # 计算方差
+        print(f"Dimension {i}: variance={rssi[:, i].var().item()}")
+    for i in range(pretrain_pth['snr'].shape[1]):
+        print(f"snr Dimension {i}: min={pretrain_pth['snr'][:, i].min().item()}, max={pretrain_pth['snr'][:, i].max().item()}")
+    
+    print(pretrain_pth['label'].shape)
+    print(pretrain_pth['sf'].unique())
+    print(pretrain_pth['label'].shape)

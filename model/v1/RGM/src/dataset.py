@@ -53,14 +53,6 @@ class ComplexDatasetLocs(Dataset):
         # 下面代码在数据集里点覆盖不到位的时候是会报错的
         # 读取位置特征
         self.label_features = self.load_label_features(label_feature_path)
-        # # 检查位置特征是否和标签匹配38
-        # unique_ids = torch.unique(self.labels)
-        # if len(self.label_features) != len(unique_ids):
-        #     # 打印两者的label
-        #     print(f"Label features: {list(self.label_features.keys())}")
-        #     print(f"Unique labels: {unique_ids}")
-        #     raise ValueError(f"Mismatch between label_features and labels. Only {len(self.label_features)} location feature were obtained, but there are a total of {len(unique_ids)} location IDs. \n\nPlease make sure to finish running '0_location_representation.py' before running this script.\n")        
-
 
     # 读取位置特征，如果为空就不要返回了
     def load_label_features(self, path):
@@ -70,8 +62,8 @@ class ComplexDatasetLocs(Dataset):
         for _, row in df.iterrows():
             if pd.notnull(row['x']) and pd.notnull(row['y']) and pd.notnull(row['distance']):
                 mapped_id = int(row['idx'])
-                # vector = torch.tensor([row['x'], row['y'], row['distance'],row['distance_true'],row['cross_wall'],row['cross_center'],row['is_x'],row['is_y']], dtype=torch.float32)
-                vector = torch.tensor([row['x'], row['y'], row['distance'],row['distance_true']], dtype=torch.float32)
+                vector = torch.tensor([row['x'], row['y'], row['wall_nums'],row['window'],row['floor'],row['distance'],row['distance_true']], dtype=torch.float32)
+                # vector = torch.tensor([row['x'], row['y'], row['distance'],row['distance_true']], dtype=torch.float32)
 
                 label_features[mapped_id] = vector
          

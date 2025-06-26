@@ -36,8 +36,8 @@ class PixelDiffusion(pl.LightningModule):
     # todo generate debug一下这个forward函数，为什么生成数据全是1
     @torch.no_grad()
     def forward(self, *args, **kwargs):
-        return self.output_T(self.model(*args, **kwargs))
-        # return self.model(*args, **kwargs)
+        # return self.output_T(self.model(*args, **kwargs))
+        return self.model(*args, **kwargs)
 
     def input_T(self, input):
         return input.clip(-1, 1)
@@ -130,11 +130,12 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
                                                           schedule=schedule, 
                                                           num_timesteps=num_timesteps, 
                                                           sampler=sampler,signal_feature_dim=signal_feature_dim,sf_parameter=sf_parameter)
-    
+
+        
     def training_step(self, batch_data, batch_idx):   
         signal_vec, location_vec, label,sf,tp,true_distance= batch_data
-        # loss = self.model.p_loss(signal_vec, location_vec,sf,tp,true_distance)
-        loss = self.model.p_loss(self.input_T(signal_vec), location_vec,sf,tp,true_distance)
+        loss = self.model.p_loss(signal_vec, location_vec,sf,tp,true_distance)
+        # loss = self.model.p_loss(self.input_T(signal_vec), location_vec,sf,tp,true_distance)
 
         self.log('train_loss', loss, 
                  on_step=True, 
@@ -146,8 +147,10 @@ class PixelDiffusionConditional_v2(PixelDiffusion):
             
     def validation_step(self, batch_data, batch_idx):
         signal_vec, location_vec,  label,sf,tp,true_distance= batch_data
+        loss = self.model.p_loss(signal_vec, location_vec,sf,tp,true_distance)
+
         # loss = self.model.p_loss(signal_vec, location_vec,sf,tp,true_distance)
-        loss = self.model.p_loss(self.input_T(signal_vec), location_vec,sf,tp,true_distance)
+        # loss = self.model.p_loss(self.input_T(signal_vec), location_vec,sf,tp,true_distance)
         # 修改点2: 验证损失也显示在进度条
         self.log('val_loss', loss, 
                  on_epoch=True,   # 验证通常只关注epoch平均

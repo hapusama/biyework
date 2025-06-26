@@ -33,8 +33,7 @@ if __name__ == '__main__':
     location_vector_path = os.path.join(output_dir, args.location_vector_name)
     # 生成一个数据集, 32000个数据，每个数据有rssi, snr, label, location_vector, snr里面包含的是sf和tp
     complex_dataset = ComplexDatasetLocs(rssi, 
-                                         snr, 
-                                         label, 
+                                         snr,label, 
                                          location_vector_path
                                          )
     

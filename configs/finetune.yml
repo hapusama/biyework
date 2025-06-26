@@ -11,7 +11,7 @@ classifier_input_channels: 2
 classifier_hidden_input_len: 4
 num_locs: 21
 n_layers: 3
-input_dim: 6
+input_dim: 4
 hidden_dim: 128
 dropout_pra: 0.1
 learning_rate: 0.0001
@@ -22,7 +22,7 @@ config: "configs/finetune.yml"
 
 ##### New parameters for pre-training rgm #####
 signal_feature_dim: 4           # 因为inputdim太小，做一个线性变化为高纬度，组成channels*signal_feature_dim
-loc_dim: 5             # for location vector x\y\distance\sf\tp
+loc_dim: 8             # for location vector x\y\distance\sf\tp
 num_timesteps: 1000
 schedule: "linear"    # cosine, linear, quadratic, sigmoid
 data_channels: 2      # number of data channels（unet卷积层通道数）
@@ -31,16 +31,16 @@ channel_dimension_scale: [1, 2, 4,8]
 num_epochs_rgm: 100
 batch_size_rgm: 128
 learning_rate_rgm: 0.001
-rgm_pretrain_path: "rgm_floor3_sf_11_pretrained.ckpt"
+rgm_pretrain_path: "rgm_floor3_sf_11_pretrained_base.ckpt"
 
 
 ##### New parameters for fine-tuning rGM #####
 
-data_name_ft: "floor4_sf_11_pretrain.pth" #input文件夹下
-data_name_fake: "floor4_sf_11_fake.pth" 
+data_name_ft: "floor3_sf_11_pretrain.pth" #input文件夹下
+data_name_fake: "floor3_sf_11_fake.pth" 
 ratios_locs: 0.25
 save_model_name_fake: "classifier_fingerprint.ckpt"
 num_epochs_rgm_ft: 70
-rgm_fine_tune_path: "floor4_sf_11_finetuned_rgm.ckpt"
+rgm_fine_tune_path: "rgm_floor3_sf_11_pretrained_base.ckpt"
 
 

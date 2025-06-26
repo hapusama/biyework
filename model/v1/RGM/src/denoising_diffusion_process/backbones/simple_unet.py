@@ -201,7 +201,7 @@ class UnetComplexBlock(nn.Module):
         self.downs = nn.ModuleList([] )
         self.ups = nn.ModuleList([])
 
-        in_out=[(12,16),(16,32),(32,64),(64,128),(128,256)] #todo 后续也写到yml
+        in_out=[(8,16),(16,32),(32,64),(64,128),(128,256)] #todo 后续也写到yml
         for ind, (length_in, length_out) in enumerate(in_out):
 
             self.downs.append(nn.ModuleList([
@@ -249,7 +249,7 @@ class UnetComplexBlock(nn.Module):
             x = attn(x)
             h.append(x)
 
-        x = self.mid_block1(x, t)   # (@ ,128
+        x = self.mid_block1(x, t)   # (@ ,128)
         x = self.mid_attn(x)        # (@ ,128)
         x = self.mid_block2(x, t)   # (@ ,128)
         for convnext, convnext2, attn in self.ups:
@@ -262,4 +262,3 @@ class UnetComplexBlock(nn.Module):
         out = self.final_linear(x)
 
         return out
-
