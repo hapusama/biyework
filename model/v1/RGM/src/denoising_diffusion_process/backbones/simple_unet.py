@@ -291,7 +291,17 @@ class UnetComplexBlock(nn.Module):
             nn.Linear(dim * 4, dim)
         )
 
+        # self.class_emb = nn.Sequential(
+        #     nn.Linear(loc_dim, dim), 
+        #     nn.GELU(),
+        #     nn.Linear(dim, dim * 4),
+        #     nn.GELU(),
+        #     nn.Linear(dim * 4, dim * 4),
+        #     nn.GELU(),
+        #     nn.Linear(dim * 4, dim),
+        # )
         self.class_emb = nn.Sequential(
+            nn.LayerNorm(loc_dim),
             nn.Linear(loc_dim, dim), 
             nn.GELU(),
             nn.Linear(dim, dim * 4),

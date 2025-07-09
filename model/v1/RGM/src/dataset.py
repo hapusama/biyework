@@ -69,7 +69,8 @@ class ComplexDatasetLocs(Dataset):
         for _, row in df.iterrows():
             if pd.notnull(row['x']) and pd.notnull(row['y']) and pd.notnull(row['distance']):
                 mapped_id = int(row['idx'])
-                vector = torch.tensor([row['x'], row['y'], row['distance']], dtype=torch.float32)
+                vector = torch.tensor([row['x'], row['y'], row['distance'],row['wall_nums'],row['window'],row['floor']], dtype=torch.float32)
+                # vector = torch.tensor([row['x'], row['y'], row['distance']], dtype=torch.float32)
                 label_features[mapped_id] = vector
          
         return label_features

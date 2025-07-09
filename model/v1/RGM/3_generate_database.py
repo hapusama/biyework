@@ -49,7 +49,7 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
     loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v3.ckpt"
+    loaded_fine_tuned_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v4.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\1_pretrained_rgm.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 

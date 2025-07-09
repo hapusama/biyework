@@ -5,7 +5,7 @@ import torch.optim as optim
 from src.dataset import generate_three_loader_v3
 from sklearn.model_selection import train_test_split
 # 模型配置
-batch_size = 64
+batch_size = 128
 input_dim=6
 # mode='generate'
 mode='test'
@@ -17,8 +17,8 @@ lr = 1e-2
 # 优化器的学习率
 valid_size = 0.2
 test_size=0.1
-# num_epochs = 250
-num_epochs=100
+num_epochs = 250
+# num_epochs=100
 new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
 model_path_train=r'model\v1\output\classifier_ori.pth'
 from tqdm import tqdm
@@ -26,13 +26,6 @@ from tqdm import tqdm
 class LocationClassifier(nn.Module):
     def __init__(self, input_dim, num_classes):
         super(LocationClassifier, self).__init__()
-        # self.fc = nn.Sequential(
-        #     nn.Linear(input_dim, 64),
-        #     nn.ReLU(),
-        #     nn.Linear(64, 32),
-        #     nn.ReLU(),
-        #     nn.Linear(32, num_classes)
-        # )
         self.fc = nn.Sequential(
             nn.Linear(input_dim, 32),
             nn.ReLU(),
