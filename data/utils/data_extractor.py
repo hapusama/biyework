@@ -5,6 +5,9 @@ import torch
 # 定义固定列名
 fixed_columns = ['hdok', 'plok', 'none', 'nums', 'totalNums', 'average_rssi', 'snr', 'sf', 'tp', 'serial_size']
 save_file_path= os.path.join(os.getcwd(), 'data', 'processedData')
+area1_list=[0,1,2,3,4,5]
+area2_list=[6,7,8,9,10,11,12,13,14]
+area3_list=[15,16,17,18,19,20]
 def apply_kalman_filter(row, rssi_columns):
     rssi_values = row[rssi_columns].astype(float).values  # 转换为浮点数
     if len(rssi_values) > 0:  # 确保有数据可以进行滤波
@@ -107,7 +110,7 @@ def txt_to_csv(file_path):
                         df.to_csv(os.path.join(save_folder_path, txt_file.replace('.txt', '.csv')), index=False)
                         print(f"文件 {txt_file} 转换成功")
 #将每一层的CSV文件合并成一个CSV文件为 all_data.csv                        
-def csv_to_csv(file_floor):
+def csv_to_csv(file_floor,PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv",location_vector_path=r'model\v1\output\location_vector_v2.csv'):
     path_load='data/processedData'+ os.sep + file_floor
     new_file_save='data/processedData' + os.sep + file_floor + os.sep + 'all_data.csv'
     if os.path.isdir(path_load):
@@ -123,14 +126,40 @@ def csv_to_csv(file_floor):
                     temp_df=pd.read_csv(os.path.join(sf_path,csv_file))
                     temp_df['location_id'] = name
                     temp_df = temp_df[['realtime_average_rssi', 'average_rssi', 'rssi_variance', 'snr', 'median_rssi', 'mode_rssi', 'rssi_skewness', 'rssi_kurtosis', 'sf', 'tp', 'location_id']]
+                    
+                    location_df=pd.read_csv(location_vector_path)
+                    location_to_idx=dict(zip(location_df['location_id'], location_df['idx']))
+                    location_to_distance_true=dict(zip(location_df['location_id'], location_df['distance_true']))
+                    
+                    temp_df['idx']=temp_df['location_id'].map(location_to_idx)
+                    temp_df['Area']=temp_df['idx'].apply(lambda x: 1 if x in area1_list else (2 if x in area2_list else 3))
+                    
+                    params_df=pd.read_csv(PLM_params_path)
+                    #merge比逐行查询效率高
+                    merged_df=pd.merge(temp_df, params_df, on=['sf', 'Area'], how='left')
+                    merged_df['distance_true'] = merged_df['location_id'].map(location_to_distance_true)
+                    
+                    tp=2    #后续修改这里的hardcode
+                    merged_df['tp'] = tp
+                    
+                    # 计算RSSI
+                    valid_distances = merged_df['distance_true'] > 0
+                    merged_df.loc[valid_distances, 'PLM_RSSI'] = merged_df.loc[valid_distances, 'A'] - 10 * merged_df.loc[valid_distances, 'n'] * np.log10(merged_df.loc[valid_distances, 'distance_true'])
+                    merged_df.loc[~valid_distances, 'PLM_RSSI'] = np.nan
+                    merged_df["residual"]= merged_df['realtime_average_rssi'] - merged_df['PLM_RSSI']
+                    temp_df=merged_df[temp_df.columns.tolist() + ['PLM_RSSI',"residual"]]
+                    
                     all_data=pd.concat([all_data,temp_df], ignore_index=True)
+                    
                     all_data['location_id'] = all_data['location_id'].astype(str).str.replace('.0', '', regex=False)
                     all_data.loc[all_data['location_id'].str.isnumeric(), 'location_id'] = all_data.loc[all_data['location_id'].str.isnumeric(), 'location_id'].astype(int)
-       
+        
+        
         all_data=all_data.dropna()
         all_data=all_data.drop_duplicates()
         all_data.to_csv(new_file_save, index=False)
-        
+
+
 # 将all_data.csv转换为pth文件
 def csv_to_pth(
     floor_id,
@@ -141,7 +170,7 @@ def csv_to_pth(
     pretrain_sf=[7,8,9,10,11,12],
     finetune_sf=[7,8,9,10,11,12],
     test_sf=[7,8,9,10,11,12],
-    location_vector_path=r'model\v1\output\location_vector_v3.csv',
+    location_vector_path=r'model\v1\output\location_vector_v2.csv',
     max_pretrain=2000,
     max_finetune=500,
     max_test=200,
@@ -164,7 +193,7 @@ def csv_to_pth(
 
     # 特征列
     # data_features = ['average_rssi','median_rssi','mode_rssi','rssi_skewness','rssi_kurtosis', "snr"] * times
-    data_features = ['average_rssi', 'median_rssi', 'mode_rssi', "snr"] * times
+    data_features = ['average_rssi','rssi_variance', 'median_rssi', 'mode_rssi', "snr","residual"] * times
     
     # 将df的data_features特征列进行归一化
     for feature in data_features:
@@ -228,15 +257,11 @@ def csv_to_pth(
 if __name__ == "__main__":
     # txt_to_csv(f"FLOOR3")
     # csv_to_csv(f"FLOOR3")
-    csv_to_pth(f"FLOOR3",pretrain_name="floor3_sf_11_pretrain_dataset.pth",finger_name="finger_sf_11_floor3_dataset.pth",pretrain_sf=[11])
+    # csv_to_pth(f"FLOOR3",pretrain_name="floor3_sf_11_pretrain_dataset.pth",finger_name="finger_sf_11_floor3_dataset.pth",pretrain_sf=[11])
     
     # 验证生成的pth数据集
     pretrain_pth=torch.load('model\\v1\\input\\floor3_sf_11_pretrain_dataset.pth')
     rssi = pretrain_pth['rssi']
-    x_t = torch.tensor([[0, 0, 0, 0, 0, 0]], dtype=torch.float32)
-    t=10
-    z = torch.randn_like(x_t) 
-    print(z)
     for i in range(rssi.shape[1]):
         print(f"Dimension {i}: min={rssi[:, i].min().item()}, max={rssi[:, i].max().item()}")
         # 计算方差

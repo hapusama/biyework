@@ -12,7 +12,7 @@ classifier_input_channels: 2
 classifier_hidden_input_len: 4
 num_locs: 21
 n_layers: 3
-input_dim: 4
+input_dim: 6
 hidden_dim: 128
 dropout_pra: 0.1
 learning_rate: 0.0001
