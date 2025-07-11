@@ -33,18 +33,6 @@ if __name__ == '__main__':
     snr = loaded['snr']
     label = loaded['label']
 
-    # rssi_mean = rssi.mean(dim=0, keepdim=True)
-    # rssi_std = rssi.std(dim=0, keepdim=True)
-    # rssi = (rssi - rssi_mean) / rssi_std
-
-    # snr_mean = snr.mean(dim=0, keepdim=True)
-    # snr_std = snr.std(dim=0, keepdim=True)
-    # snr = (snr - snr_mean) / snr_std
-    
-    # 对rssi和snr进行缩放到[-1, 1]范围
-    scaler = MinMaxScaler(feature_range=(-1, 1))
-    rssi = torch.tensor(scaler.fit_transform(rssi), dtype=torch.float32)
-    snr = torch.tensor(scaler.fit_transform(snr), dtype=torch.float32)
     location_vector_path = os.path.join(output_dir, args.location_vector_name)
     # 生成一个数据集, 32000个数据，每个数据有amplitude, phase, label, location_vector
     complex_dataset = ComplexDatasetLocs(rssi, 
@@ -72,8 +60,9 @@ if __name__ == '__main__':
     model_path_fintune_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
     model_path_fintune_rgm_run = os.path.join(output_dir, f"finetuned_rgm_running.ckpt")
     
-    loaded_pretrained_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
-
+    # loaded_pretrained_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
+    # loaded_pretrained_rgm=r"model\v1\output\lossmin\pretrain-sf-11.ckpt"
+    loaded_pretrained_rgm=r"model\v1\output\lossmin\val_loss_pretrain.ckpt"
     rgm_logs = os.path.join(output_dir, f"rgm_log")
     os.makedirs(rgm_logs, exist_ok=True)
 
@@ -82,9 +71,16 @@ if __name__ == '__main__':
                                         version="rgm_finetune")
 
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
+    # checkpoint_callback = pl.callbacks.ModelCheckpoint(
+    #     dirpath=output_dir, 
+    #     filename=model_path_fintune_rgm_run,
+    #     monitor="val_loss",
+    #     mode="min",
+    #     save_top_k=1,
+    #     verbose=True)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        dirpath=output_dir, 
-        filename=model_path_fintune_rgm_run,
+        dirpath="model\\v1\\output\\lossmin",
+        filename="val_loss_finetune",  # seems does not used
         monitor="val_loss",
         mode="min",
         save_top_k=1,
@@ -115,8 +111,22 @@ if __name__ == '__main__':
                         logger=tb_logger)
     train_loader = DataLoader(train_data_set, batch_size=batch_si, shuffle=True, num_workers=4, persistent_workers=True)
     val_loader = DataLoader(valid_data_set, batch_size=batch_si, shuffle=False, num_workers=4, persistent_workers=True)
-
+    lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='epoch')
+    # 新增早停回调（监控 val_loss）
+    early_stop_callback = pl.callbacks.EarlyStopping(
+        monitor="val_loss",    # 监控验证损失
+        patience=25,           # 连续10个epoch未改善则停止
+        mode="min",            # 监控指标越小越好
+        verbose=True           # 打印停止信息
+    )
     
+    trainer = pl.Trainer(max_epochs=num_epochs, 
+                        callbacks=[EMA(0.9999),lr_monitor, checkpoint_callback,early_stop_callback], 
+                        accelerator='gpu', 
+                        devices=[0], 
+                         enable_progress_bar=True,
+                        check_val_every_n_epoch=1,
+                        logger=tb_logger)
     trainer.fit(model, train_loader, val_loader)
 
     trainer.save_checkpoint(model_path_fintune_rgm)

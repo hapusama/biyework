@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
     # loaded_fine_tuned_rgm=r"model\v1\output\2_finetuned_rgm.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\1_pretrained_rgm.ckpt"
-    loaded_fine_tuned_rgm = r"model\v1\output\lossmin\val_loss_pretrain-v2.ckpt"
+    loaded_fine_tuned_rgm = r"model\v1\output\lossmin\val_loss_pretrain.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
     print("\nThe loaded diffusion model: {}\n".format(loaded_fine_tuned_rgm))
@@ -86,11 +86,11 @@ if __name__ == '__main__':
         # real_data[0]: [4,]
         real_data, loc_tensor, loc_int_tensor = get_features_by_label_v4(complex_dataset, loc_int)
         batch_input = loc_tensor.to(device)
-        # 600
+        # 500
         number_samples_generated = real_data.shape[0]
         
-        if number_samples_generated > 600:    # 限制生成数量，提高生成过程速度
-            number_samples_generated = 600
+        if number_samples_generated > 500:    # 限制生成数量，提高生成过程速度
+            number_samples_generated = 500
             batch_input = batch_input[:number_samples_generated]
             real_data= real_data[:number_samples_generated]
             loc_tensor=loc_tensor[:number_samples_generated]

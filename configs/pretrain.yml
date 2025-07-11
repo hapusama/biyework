@@ -2,7 +2,7 @@
 # some parameters are reused for area b
 # Training settings
 train_flag: True
-data_name: "floor3_sf_11_pretrain_dataset.pth"
+data_name: "floor3_sf_10_pretrain_dataset.pth"
 save_model_name: "RGM_pretrain.ckpt"
 frac_for_valid: 0.05
 frac_for_test: 0.25

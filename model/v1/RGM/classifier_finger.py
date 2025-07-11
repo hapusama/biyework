@@ -84,13 +84,20 @@ if "__main__"==__name__:
             valid_loss = 0
             with torch.no_grad():
                 for batch_idx,(data_batch_fake,data_batch_real,_,label_int_batch) in enumerate(valid_loader):
-                    data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
+                    data_batch_fake,data_batch_real, label_int_batch = data_batch_fake.to(device), data_batch_real.to(device), label_int_batch.to(device)
+                    data_batch_real = data_batch_real.squeeze(1)
                     data_batch_fake = data_batch_fake.squeeze(1)
                     # 在训练循环中添加噪声
                     data_batch_fake += torch.randn_like(data_batch_fake) * 0.01  # 添加高斯噪声
                     # 随机丢弃部分特征
                     dropout_mask = torch.rand_like(data_batch_fake) > 0.1  # 90% 的概率保留特征
                     data_batch_fake *= dropout_mask
+                    # 在验证循环中添加噪声
+                    data_batch_real = data_batch_real.squeeze(1)
+                    data_batch_real += torch.randn_like(data_batch_real) * 0.01  # 添加高斯噪声
+                    # 随机丢弃部分特征
+                    dropout_mask = torch.rand_like(data_batch_real) > 0.1  # 90% 的概率保留特征
+                    data_batch_real *= dropout_mask
                     # data_batch_fake = data_batch_fake.view(-1, input_dim)
                     outputs = model(data_batch_fake)
                     loss = criterion(outputs, label_int_batch)

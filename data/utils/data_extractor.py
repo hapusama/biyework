@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import numpy as np
 import torch
+from collections import Counter
 # 定义固定列名
 fixed_columns = ['hdok', 'plok', 'none', 'nums', 'totalNums', 'average_rssi', 'snr', 'sf', 'tp', 'serial_size']
 save_file_path= os.path.join(os.getcwd(), 'data', 'processedData')
@@ -198,18 +199,18 @@ def csv_to_pth(
     # 将df的data_features特征列进行归一化
     for feature in data_features:
         if feature in df.columns:
-            df[feature] = (df[feature] - df[feature].mean()) / df[feature].std()+1e-3  # 防止除以0
+            df[feature] = (df[feature] - df[feature].mean()) / df[feature].std()+1e-3  # 防止除以0       
     # 数据集划分
     pretrain_df = df[df['sf'].isin(pretrain_sf)]
-    pretrain_df = pretrain_df.groupby('location_id', group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_pretrain), random_state=42))
+    pretrain_df = pretrain_df.groupby(['location_id', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_pretrain), random_state=42))
     remaining_df = df.drop(pretrain_df.index)
 
     finetune_df = remaining_df[remaining_df['sf'].isin(finetune_sf)]
-    finetune_df = finetune_df.groupby('location_id', group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_finetune), random_state=42))
+    finetune_df = finetune_df.groupby(['location_id', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_finetune), random_state=42))
     remaining_df = remaining_df.drop(finetune_df.index)
 
     test_df = remaining_df[remaining_df['sf'].isin(test_sf)]
-    test_df = test_df.groupby('location_id', group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_test), random_state=42))
+    test_df = test_df.groupby(['location_id', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_test), random_state=42))
     remaining_df = remaining_df.drop(test_df.index)
     # 检查重叠
     assert len(set(pretrain_df.index) & set(finetune_df.index)) == 0
@@ -220,27 +221,27 @@ def csv_to_pth(
     save_pth = 'model\\v1\\input'+os.sep+pretrain_name
     torch.save({
         'rssi': torch.tensor(pretrain_df[data_features].values, dtype=torch.float32),
-        'sf': torch.tensor(pretrain_df["sf"].values, dtype=torch.float32),
-        'tp': torch.tensor(pretrain_df['tp'].values, dtype=torch.float32),
-        'snr': torch.tensor(pretrain_df[['sf', 'tp']].values, dtype=torch.float32),
+        'sf': torch.tensor(pretrain_df["sf"].values, dtype=torch.float32)/10,
+        'tp': torch.tensor(pretrain_df['tp'].values, dtype=torch.float32)/10,
+        'snr': torch.tensor(pretrain_df[['sf', 'tp']].values, dtype=torch.float32)/10,
         'label': torch.tensor(pretrain_df['location_id'].values, dtype=torch.int64)
     }, save_pth)
 
     finetune_name='model\\v1\\input' + os.sep + finetune_name
     torch.save({
         'rssi': torch.tensor(finetune_df[data_features].values, dtype=torch.float32),
-        'sf': torch.tensor(finetune_df["sf"].values, dtype=torch.float32),
-        'tp': torch.tensor(finetune_df['tp'].values, dtype=torch.float32),
-        'snr': torch.tensor(finetune_df[['sf', 'tp']].values, dtype=torch.float32),
+        'sf': torch.tensor(finetune_df["sf"].values, dtype=torch.float32)/10,
+        'tp': torch.tensor(finetune_df['tp'].values, dtype=torch.float32)/10,
+        'snr': torch.tensor(finetune_df[['sf', 'tp']].values, dtype=torch.float32)/10,
         'label': torch.tensor(finetune_df['location_id'].values, dtype=torch.int64)
     }, finetune_name)
     
     test_name='model\\v1\\input' + os.sep + test_name
     torch.save({
         'rssi': torch.tensor(test_df[data_features].values, dtype=torch.float32),
-        'sf': torch.tensor(test_df["sf"].values, dtype=torch.float32),
-        'tp': torch.tensor(test_df['tp'].values, dtype=torch.float32),
-        'snr': torch.tensor(test_df[['sf', 'tp']].values, dtype=torch.float32),
+        'sf': torch.tensor(test_df["sf"].values, dtype=torch.float32)/10,
+        'tp': torch.tensor(test_df['tp'].values, dtype=torch.float32)/10,
+        'snr': torch.tensor(test_df[['sf', 'tp']].values, dtype=torch.float32)/10,
         'label': torch.tensor(test_df['location_id'].values, dtype=torch.int64)
     }, test_name)
     # finger数据集
@@ -257,18 +258,46 @@ def csv_to_pth(
 if __name__ == "__main__":
     # txt_to_csv(f"FLOOR3")
     # csv_to_csv(f"FLOOR3")
-    # csv_to_pth(f"FLOOR3",pretrain_name="floor3_sf_11_pretrain_dataset.pth",finger_name="finger_sf_11_floor3_dataset.pth",pretrain_sf=[11])
+    pretrain_pth="floor3_sf_10_pretrain_dataset.pth"
+    finetune_pth="floor3_sf_11_finetune_dataset.pth"
+    test_pth="floor3_sf_11_test_dataset.pth"
+    finger_pth="finger_sf_11_floor3_dataset.pth"
+    # 生成数据集
+    csv_to_pth(f"FLOOR3",
+               pretrain_name=pretrain_pth,
+                finetune_name=finetune_pth,
+                test_name=test_pth,
+               finger_name=finger_pth,
+               pretrain_sf=[10],finetune_sf=[11],test_sf=[11],
+               max_pretrain=1500,max_finetune=500,max_test=550)
     
     # 验证生成的pth数据集
-    pretrain_pth=torch.load('model\\v1\\input\\floor3_sf_11_pretrain_dataset.pth')
+    pretrain_pth=torch.load('model\\v1\\input\\floor3_sf_10_pretrain_dataset.pth')
+    test_pth=torch.load('model\\v1\\input\\floor3_sf_11_test_dataset.pth')
+    finetune_pth=torch.load('model\\v1\\input\\floor3_sf_11_finetune_dataset.pth')
     rssi = pretrain_pth['rssi']
-    for i in range(rssi.shape[1]):
-        print(f"Dimension {i}: min={rssi[:, i].min().item()}, max={rssi[:, i].max().item()}")
-        # 计算方差
-        print(f"Dimension {i}: variance={rssi[:, i].var().item()}")
-    for i in range(pretrain_pth['snr'].shape[1]):
-        print(f"snr Dimension {i}: min={pretrain_pth['snr'][:, i].min().item()}, max={pretrain_pth['snr'][:, i].max().item()}")
+    # for i in range(rssi.shape[1]):
+    #     print(f"Dimension {i}: min={rssi[:, i].min().item()}, max={rssi[:, i].max().item()}")
+    #     # 计算方差
+    #     print(f"Dimension {i}: variance={rssi[:, i].var().item()}")
+    # for i in range(pretrain_pth['snr'].shape[1]):
+    #     print(f"snr Dimension {i}: min={pretrain_pth['snr'][:, i].min().item()}, max={pretrain_pth['snr'][:, i].max().item()}")
+    def print_counts(pth, name):
+        sf_counts = Counter(pth['sf'].tolist())
+        label_counts = Counter(pth['label'].tolist())
+        print(f"{name} sf counts:", dict(sf_counts))
+        print(f"{name} location_id counts:", dict(label_counts))
+
+    print_counts(pretrain_pth, "pretrain")
+    # print_counts(finetune_pth, "finetune")
+    # print_counts(test_pth, "test")
     
     print(pretrain_pth['label'].shape)
     print(pretrain_pth['sf'].unique())
-    print(pretrain_pth['label'].shape)
+    # print(finetune_pth['label'].shape)
+    # print(test_pth['label'].shape)
+    print(pretrain_pth['sf'].unique())
+    # print(finetune_pth['sf'].unique())
+    # print(test_pth['sf'].unique())  
+    # print(finetune_pth['snr'])
+    
