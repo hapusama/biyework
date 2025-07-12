@@ -235,16 +235,23 @@ class ComplexTimeBlock(nn.Module):
         # self.ds_conv = nn.Conv1d(dim, dim, 7, padding=3,groups=dim)
         self.ds_conv = nn.Conv1d(dim, dim, 3, padding=1,groups=dim)
 
+        # self.net = nn.Sequential(
+        #     LayerNorm(dim) if norm else nn.Identity(),
+        #     nn.Conv1d(dim, dim_out * mult, 3, padding=1),
+        #     nn.GELU(),
+        #     nn.Conv1d(dim_out * mult, dim_out, 3, padding=1)
+        #     )
+        # self.res_conv = nn.Conv1d(dim, dim_out, 3,padding=1) if dim != dim_out else nn.Identity()
+
         self.net = nn.Sequential(
             LayerNorm(dim) if norm else nn.Identity(),
-            nn.Conv1d(dim, dim_out * mult, 3, padding=1),
+            nn.Conv1d(dim, dim_out * mult, 1, padding=0),
             nn.GELU(),
-            nn.Conv1d(dim_out * mult, dim_out, 3, padding=1)
+            nn.Conv1d(dim_out * mult, dim_out, 1, padding=0)
             )
+        self.res_conv = nn.Conv1d(dim, dim_out, 1,padding=0) if dim != dim_out else nn.Identity()
 
-        self.res_conv = nn.Conv1d(dim, dim_out, 3,padding=1) if dim != dim_out else nn.Identity()
-
-
+        
     def forward(self, x, time_emb=None):
         h = self.ds_conv(x)
 

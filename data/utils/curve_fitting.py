@@ -8,13 +8,13 @@ import matplotlib.pyplot as plt
 def path_loss_model(d, A, n):
     return A - 10 * n * np.log10(d)
 
-fitting_data_path=r'data\processedData\FLOOR3\all_data.csv'
+fitting_data_path=r'data\processedData\FLOOR4\all_data.csv'
 location_vector_path=r'model\v1\output\location_vector_v2.csv'
 label_coordinate_path=r'PicdataProcessing\image.png'
 area1_list=[0,1,2,3,4,5]
 area2_list=[6,7,8,9,10,11,12,13,14]
 area3_list=[15,16,17,18,19,20]
-PLM_save_path=r"model\v1\output\PLM_FLOOR3.csv"
+PLM_save_path=r"model\v1\output\PLM_FLOOR4.csv"
 
 def fit_path_loss_per_sf(data_df, df, area_lists, area_names, colors, path_loss_model):
     """
@@ -86,7 +86,7 @@ def fit_path_loss_per_sf(data_df, df, area_lists, area_names, colors, path_loss_
             print(f'{area_names[area_idx]} 拟合参数: A={popt[0]:.2f}, n={popt[1]:.2f}')
             # 准备要保存的数据
             param_data = {
-                'SF': sf,
+                'sf': sf,
                 'Area': area_names[area_idx],
                 'A': popt[0],
                 'n': popt[1]

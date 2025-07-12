@@ -17,8 +17,8 @@ lr = 1e-2
 # 优化器的学习率
 valid_size = 0.2
 test_size=0.1
-num_epochs = 250
-# num_epochs=100
+num_epochs = 100
+# num_epochs=250
 new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
 model_path_train=r'model\v1\output\classifier_ori.pth'
 from tqdm import tqdm

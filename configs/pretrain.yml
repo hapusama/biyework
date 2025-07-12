@@ -2,7 +2,7 @@
 # some parameters are reused for area b
 # Training settings
 train_flag: True
-data_name: "floor3_sf_10_pretrain_dataset.pth"
+data_name: "floor3_sf_11_pretrain_dataset.pth"
 save_model_name: "RGM_pretrain.ckpt"
 frac_for_valid: 0.05
 frac_for_test: 0.25
@@ -24,7 +24,7 @@ loc_dim: 8            # for location vector
 num_timesteps: 1000
 schedule: "linear"    # cosine, linear, quadratic, sigmoid
 data_channels: 2      # number of data channels（unet卷积层通道数）
-channel_dimension_scale: [1, 2, 4,8]
+channel_dimension_scale: [1, 2, 4,8,16]
 num_epochs_rgm: 100
 batch_size_rgm: 256
 learning_rate_rgm: 0.001
