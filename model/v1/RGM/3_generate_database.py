@@ -49,9 +49,9 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
     # loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    # loaded_fine_tuned_rgm=r"model\v1\output\2_finetuned_rgm.ckpt"
+    loaded_fine_tuned_rgm=r"model\v1\output\2_finetuned_rgm.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\1_pretrained_rgm.ckpt"
-    loaded_fine_tuned_rgm = r"model\v1\output\lossmin\val_loss_finetune.ckpt"
+    # loaded_fine_tuned_rgm = r"model\v1\output\lossmin\val_loss_finetune-v1.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
 
     print("\nThe loaded diffusion model: {}\n".format(loaded_fine_tuned_rgm))

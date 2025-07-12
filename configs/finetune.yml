@@ -2,7 +2,7 @@
 # some parameters are reused for area b
 # Training settings
 train_flag: True
-data_name: "floor4_sf_11_finetune_dataset.pth"
+data_name: "floor3_sf_10_finetune_dataset.pth"
 save_model_name: "RGM_pretrain.ckpt"
 frac_for_valid: 0.05
 frac_for_test: 0.25
@@ -16,7 +16,7 @@ input_dim: 6
 hidden_dim: 128
 dropout_pra: 0.1
 learning_rate: 0.0001
-num_epochs: 100
+num_epochs: 150
 batch_size: 256
 location_vector_name: "location_vector_v2.csv"
 config: "configs/finetune.yml"
@@ -35,7 +35,7 @@ rgm_pretrain_path: "1_pretrained_rgm.ckpt"
 
 
 ##### New parameters for fine-tuning rGM #####
-data_name_ft: "floor4_sf_11_test_dataset.pth"
+data_name_ft: "floor3_sf_10_test_dataset.pth"
 ratios_locs: 0.25
 data_name_fake: "floor4_v3.pth"
 save_model_name_fake: "classifier_fingerprint.ckpt"

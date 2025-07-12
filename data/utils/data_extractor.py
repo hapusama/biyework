@@ -258,29 +258,29 @@ if __name__ == "__main__":
     # =================FLOOR3数据集生成========================= #
     # txt_to_csv(f"FLOOR3")
     # csv_to_csv(f"FLOOR3",PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv")
-    # csv_to_pth(f"FLOOR3",
-    #            pretrain_name="floor3_sf_11_pretrain_dataset.pth",
-    #             finetune_name="floor3_sf_11_finetune_dataset.pth",
-    #             test_name="floor3_sf_11_test_dataset.pth",
-    #            finger_name="finger_sf_11_floor3_dataset.pth",
-    #            pretrain_sf=[11],finetune_sf=[11],test_sf=[11],
-    #            max_pretrain=2000,max_finetune=500,max_test=550)
+    csv_to_pth(f"FLOOR3",
+               pretrain_name="floor3_sf_10_pretrain_dataset.pth",
+                finetune_name="floor3_sf_10_finetune_dataset.pth",
+                test_name="floor3_sf_10_test_dataset.pth",
+               finger_name="finger_sf_10_floor3_dataset.pth",
+               pretrain_sf=[10],finetune_sf=[10],test_sf=[10],
+               max_pretrain=0,max_finetune=550,max_test=550)
     
     # =================FLOOR4数据集生成========================= #
     # txt_to_csv(f"FLOOR4")
-    csv_to_csv(f"FLOOR4",PLM_params_path=r"model\v1\output\PLM_FLOOR4.csv")
-    csv_to_pth(f"FLOOR4",
-               pretrain_name="floor4_sf_11_pretrain_dataset.pth",
-                finetune_name="floor4_sf_11_finetune_dataset.pth",
-                test_name="floor4_sf_11_test_dataset.pth",
-               finger_name="finger_sf_11_floor4_dataset.pth",
-               pretrain_sf=[11],finetune_sf=[11],test_sf=[11],
-               max_pretrain=0,max_finetune=500,max_test=550)
+    # csv_to_csv(f"FLOOR4",PLM_params_path=r"model\v1\output\PLM_FLOOR4.csv")
+    # csv_to_pth(f"FLOOR4",
+    #            pretrain_name="floor4_sf_11_pretrain_dataset.pth",
+    #             finetune_name="floor4_sf_11_finetune_dataset.pth",
+    #             test_name="floor4_sf_11_test_dataset.pth",
+    #            finger_name="finger_sf_11_floor4_dataset.pth",
+    #            pretrain_sf=[11],finetune_sf=[11],test_sf=[11],
+    #            max_pretrain=0,max_finetune=500,max_test=550)
     
     # 验证生成的pth数据集
-    pretrain_pth=torch.load('model\\v1\\input\\floor4_sf_11_pretrain_dataset.pth')
-    test_pth=torch.load('model\\v1\\input\\floor4_sf_11_test_dataset.pth')
-    finetune_pth=torch.load('model\\v1\\input\\floor4_sf_11_finetune_dataset.pth')
+    # pretrain_pth=torch.load('model\\v1\\input\\floor4_sf_11_pretrain_dataset.pth')
+    # test_pth=torch.load('model\\v1\\input\\floor4_sf_11_test_dataset.pth')
+    # finetune_pth=torch.load('model\\v1\\input\\floor4_sf_11_finetune_dataset.pth')
     
     # rssi = pretrain_pth['rssi']
     # for i in range(rssi.shape[1]):
@@ -290,9 +290,9 @@ if __name__ == "__main__":
     # for i in range(pretrain_pth['snr'].shape[1]):
     #     print(f"snr Dimension {i}: min={pretrain_pth['snr'][:, i].min().item()}, max={pretrain_pth['snr'][:, i].max().item()}")
     
-    # pretrain_pth=torch.load('model\\v1\\input\\floor3_sf_11_pretrain_dataset.pth')
-    # test_pth=torch.load('model\\v1\\input\\floor3_sf_11_test_dataset.pth')
-    # finetune_pth=torch.load('model\\v1\\input\\floor3_sf_11_finetune_dataset.pth')
+    pretrain_pth=torch.load('model\\v1\\input\\floor3_sf_10_pretrain_dataset.pth')
+    test_pth=torch.load('model\\v1\\input\\floor3_sf_10_test_dataset.pth')
+    finetune_pth=torch.load('model\\v1\\input\\floor3_sf_10_finetune_dataset.pth')
     print(pretrain_pth['label'].shape)
     print(finetune_pth['rssi'].shape)
     print(test_pth['label'].shape)
