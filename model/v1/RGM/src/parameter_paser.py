@@ -55,4 +55,15 @@ def parse_args_finetune():
     
     return args
 
+def parse_args_vae():
+    # 构建配置文件路径
+    config_path = r"configs\vae.yml"
+    print(f"Using configuration file: {config_path}\n")
+    # 读取 YAML 文件
+    with open(config_path, 'r', encoding="utf-8") as file:
+        config = yaml.safe_load(file)   
 
+    # 将配置字典转换为命名空间对象
+    args = Namespace(**config)
+
+    return args

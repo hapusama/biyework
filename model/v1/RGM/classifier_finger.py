@@ -1,18 +1,19 @@
 import numpy as np
 import torch
+import os
 import torch.nn as nn
+from src.parameter_paser import parse_args_finetune
 import torch.optim as optim
 from src.dataset import generate_three_loader_v3
 from sklearn.model_selection import train_test_split
 # 模型配置
 batch_size = 128
 input_dim=8
-# mode='generate'
-mode='test'
+mode='generate'
+# mode='test'
 # mode='original'
 num_classes=21
 # 批次的大小
-input_data_pth=r'model\v1\output\floor3_v3.pth'
 lr = 1e-2
 # 优化器的学习率
 valid_size = 0.2
@@ -20,7 +21,6 @@ test_size=0.1
 num_epochs = 100
 # num_epochs=250
 new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
-model_path_train=r'model\v1\output\classifier_ori.pth'
 from tqdm import tqdm
 # 3. 构建模型
 class LocationClassifier(nn.Module):
@@ -44,6 +44,17 @@ class LocationClassifier(nn.Module):
         return self.fc(x)
         
 if "__main__"==__name__:
+    base_dir = os.path.dirname(os.path.realpath(__file__))
+    args=parse_args_finetune()
+
+    print(f"\nUsing configuration file: {args.config}\n")
+
+    input_dir = r"model\v1\input"
+    output_dir = r"model\v1\output"
+    input_data_pth=os.path.join(output_dir,args.data_name_fake)
+    model_path_train=os.path.join(output_dir,args.save_model_name_fake)
+    print(f"input_data_pth: {input_data_pth}")
+    
     complex_dataset_generated_real=torch.load(input_data_pth)
     train_loader,valid_loader,test_loader=generate_three_loader_v3(complex_dataset_generated_real, 
                                                                    batch_size, 
@@ -109,7 +120,28 @@ if "__main__"==__name__:
             scheduler.step(valid_loss)
             # 如果验证损失没有改善，则保存当前模型
             torch.save(model.state_dict(), model_path_train)
-    
+        # 加载模型
+        model.load_state_dict(torch.load(model_path_train))
+        # 6. 测试模型
+        model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for batch_idx,(_,data_batch_real,_,label_int_batch) in enumerate(test_loader):
+                data_batch_real, label_int_batch = data_batch_real.to(device), label_int_batch.to(device)
+                data_batch_real = data_batch_real.squeeze(1)
+                # data_batch_real = data_batch_real.view(-1, input_dim)
+                outputs = model(data_batch_real)
+                _, predicted = torch.max(outputs.data, 1)
+                total += label_int_batch.size(0)
+                # 把匹配成功的点打印出来
+                matched_labels = label_int_batch[predicted == label_int_batch]
+                print(f"Matched Labels: {matched_labels.cpu().numpy()}")
+                
+                correct += (predicted == label_int_batch).sum().item()
+        accuracy = correct / total
+        print(f"Test Accuracy: {accuracy:.4f}")
+
     if mode=='original':
         for epoch in range(num_epochs):
             model.train()
@@ -140,7 +172,28 @@ if "__main__"==__name__:
             scheduler.step(valid_loss)
             # 如果验证损失没有改善，则保存当前模型
             torch.save(model.state_dict(), model_path_train)
-    
+        # 加载模型
+        model.load_state_dict(torch.load(model_path_train))
+        # 6. 测试模型
+        model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for batch_idx,(_,data_batch_real,_,label_int_batch) in enumerate(test_loader):
+                data_batch_real, label_int_batch = data_batch_real.to(device), label_int_batch.to(device)
+                data_batch_real = data_batch_real.squeeze(1)
+                # data_batch_real = data_batch_real.view(-1, input_dim)
+                outputs = model(data_batch_real)
+                _, predicted = torch.max(outputs.data, 1)
+                total += label_int_batch.size(0)
+                # 把匹配成功的点打印出来
+                matched_labels = label_int_batch[predicted == label_int_batch]
+                print(f"Matched Labels: {matched_labels.cpu().numpy()}")
+                
+                correct += (predicted == label_int_batch).sum().item()
+        accuracy = correct / total
+        print(f"Test Accuracy: {accuracy:.4f}")
+
     if mode=='test':
         # 加载模型
         model.load_state_dict(torch.load(model_path_train))

@@ -3,9 +3,8 @@
 # Training settings
 train_flag: True
 data_name: "floor3_sf_11_pretrain_dataset.pth"
-save_model_name: "RGM_pretrain.ckpt"
-frac_for_valid: 0.05
-frac_for_test: 0.25
+frac_for_valid: 0.25
+frac_for_test: 0.05
 
 # Parameters for location classifier
 num_locs: 21
@@ -13,7 +12,7 @@ input_dim: 6
 hidden_dim: 128
 dropout_pra: 0.1
 learning_rate: 0.001
-num_epochs: 100
+num_epochs: 222
 batch_size: 256
 location_vector_name: "location_vector_v2.csv"
 config: "configs/pretrain.yml"
@@ -27,5 +26,5 @@ data_channels: 2      # number of data channels（unet卷积层通道数）
 channel_dimension_scale: [1, 2, 4,8,16]
 num_epochs_rgm: 100
 batch_size_rgm: 256
-learning_rate_rgm: 0.001
+learning_rate_rgm: 0.01
 rgm_pretrain_path: "1_pretrained_rgm.ckpt"

@@ -1,0 +1,16 @@
+latent_dim: 128
+input_dim: 6
+condition_dim: 8
+encoder_layers: [32,32,64,64,128,128]
+decoder_layers: [128,128,64,64,32,32]
+pretrain_dataset_pth: "model/v1/input/floor3_sf_11_pretrain_dataset.pth"
+dataset_ft: "model/v1/input/floor3_sf_11_pretrain_dataset.pth"
+data_path_area_fake: "model/v1/output/floor3_sf_11_area_fake_vae.pth"
+num_epochs: 200
+valid_frac: 0.15
+test_frac: 0.05
+learning_rate: 0.001
+batch_size: 256
+
+save_model_path: "model/v1/output/vae/Vae_pretrain.ckpt"
+location_vector_path: "model/v1/output/location_vector_v2.csv"

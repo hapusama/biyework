@@ -28,6 +28,7 @@ if __name__ == '__main__':
     # FLOOR3.pth
     data_path_area_1 = data_path = os.path.join(input_dir, args.data_name)
     loaded = torch.load(data_path_area_1)
+    print(f"data_path_area_1: {data_path_area_1}")
     rssi = loaded['rssi']   # shape [24576,7]
     snr = loaded['snr']
     label = loaded['label']
@@ -55,8 +56,6 @@ if __name__ == '__main__':
     data_channels = args.data_channels
     # 通道的倍数 1 2 4 8
     dimension_scale = args.channel_dimension_scale
-    # hidden_channels = args.hidden_input_channels
-    # hidden_input_dim = args.hidden_input_len
     model_path_train_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
     signal_feature_dim=args.signal_feature_dim
     rgm_logs = os.path.join(output_dir, f"rgm_log")

@@ -109,8 +109,7 @@ class ShiftedDataset(Dataset):
     def __getitem__(self, idx):
         data, label, label_int = self.base_dataset[idx]
 
-        return data, label, label_int + 1   # Shift labels from starting at 0 to start at 1
-
+        return data, label, label_int + 1   # 将标签从 0开始 改为从 1 开始 
 
     def __len__(self):
         return len(self.base_dataset)
@@ -161,7 +160,7 @@ def generate_three_loader_v2(dataset_t,
     train_indices, valid_indices = train_test_split(
         train_temp_indices, test_size=valid_size, stratify=train_temp_labels, random_state=42)
     
-    # Create dataset subsets for each split
+    # 创建分集
     train_dataset = Subset(dataset_t, train_indices)
     valid_dataset = Subset(dataset_t, valid_indices)
     test_dataset = Subset(dataset_t, test_indices)
@@ -191,7 +190,7 @@ def generate_three_loader_v3(dataset_t,
     train_indices, valid_indices = train_test_split(
         train_temp_indices, test_size=valid_size, stratify=train_temp_labels, random_state=42)
     
-    # Create dataset subsets for each split
+    # 创建分集
     train_dataset = Subset(dataset_t, train_indices)
     valid_dataset = Subset(dataset_t, valid_indices)
     test_dataset = Subset(dataset_t, test_indices)
@@ -235,35 +234,35 @@ def generate_three_dataset_v3(dataset_t,
                               valid_r, 
                               test_r):
 
-    # Assuming dataset_t.labels is a list or tensor of labels
+    # labels需要是个list或者tensor数组
     labels = np.array([label for _, _, label in dataset_t])
     unique_labels = np.unique(labels)
     num_selected_labels = int(len(unique_labels) * ratios)
     selected_label_ids = np.random.choice(unique_labels, num_selected_labels, replace=False)
 
-    # Filter indices for selected label IDs
+    # 筛选选定标签ID的索引
     filtered_indices = [i for i, label in enumerate(labels) if label in selected_label_ids]
     filtered_labels = labels[filtered_indices]
 
-    # Convert filtered indices to np.array for compatibility with train_test_split stratify parameter
+    # 将筛选后的索引转换为 NumPy 数组，以兼容train_test_split函数的stratify参数
     filtered_indices = np.array(filtered_indices)
     
-    # Calculate actual sizes for validation and test sets based on the filtered dataset
+    # 基于筛选后的数据集，计算验证集和测试集的实际大小。
     total_size = len(filtered_indices)
     test_size = int(total_size * test_r)
     valid_size = int(total_size * valid_r)
 
-    # Stratified split to ensure equal representation of each label ID
+    # 分层划分以确保每个标签 ID 的代表性均等
     train_temp_indices, test_indices = train_test_split(
         filtered_indices, test_size=test_size, stratify=filtered_labels, random_state=42)
     
-    # Update labels for stratified split for validation
+    # 更新用于验证的分层划分标签
     train_temp_labels = filtered_labels[[np.where(filtered_indices == i)[0][0] for i in train_temp_indices]]
     
     train_indices, valid_indices = train_test_split(
         train_temp_indices, test_size=valid_size, stratify=train_temp_labels, random_state=42)
 
-    # Create subsets for train, validation, and test datasets
+    # 为训练集、验证集和测试集创建子集
     train_dataset = Subset(dataset_t, train_indices)
     valid_dataset = Subset(dataset_t, valid_indices)
     test_dataset = Subset(dataset_t, test_indices)

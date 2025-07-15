@@ -9,7 +9,6 @@ from src.parameter_paser import parse_args_finetune
 from src.dataset import ComplexDatasetLocs, generate_three_dataset_v3
 from src.denoising_diffusion_process.samplers.DDPM import DDPM_Sampler
 from src. pixel_diffusion import PixelDiffusionConditional_v2
-from sklearn.preprocessing import MinMaxScaler
 from src import EMA
 
 
@@ -28,7 +27,9 @@ if __name__ == '__main__':
 
     # FLOOR3.pth
     data_path_area_1 = data_path = os.path.join(input_dir, args.data_name)
+    print(f"data_path_area_1: {data_path_area_1}")
     loaded = torch.load(data_path_area_1)
+    
     rssi = loaded['rssi']
     snr = loaded['snr']
     label = loaded['label']
@@ -58,11 +59,12 @@ if __name__ == '__main__':
     dimension_scale = args.channel_dimension_scale
 
     model_path_fintune_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    model_path_fintune_rgm_run = os.path.join(output_dir, f"finetuned_rgm_running.ckpt")
+    # model_path_fintune_rgm_run = os.path.join(output_dir, f"finetuned_rgm_running.ckpt")
     
-    # loaded_pretrained_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
+    loaded_pretrained_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
+    print("loaded_pretrained_rgm: ", loaded_pretrained_rgm)
     # loaded_pretrained_rgm=r"model\v1\output\lossmin\pretrain-sf-11.ckpt"
-    loaded_pretrained_rgm=r"model\v1\output\lossmin\val_loss_pretrain.ckpt"
+    # loaded_pretrained_rgm=r"model\v1\output\lossmin\val_loss_pretrain.ckpt"
     rgm_logs = os.path.join(output_dir, f"rgm_log")
     os.makedirs(rgm_logs, exist_ok=True)
 
