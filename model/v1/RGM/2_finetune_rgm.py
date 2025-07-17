@@ -58,13 +58,11 @@ if __name__ == '__main__':
     data_channels = args.data_channels
     dimension_scale = args.channel_dimension_scale
 
-    model_path_fintune_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    # model_path_fintune_rgm_run = os.path.join(output_dir, f"finetuned_rgm_running.ckpt")
-    
+    model_path_fintune_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)    
     loaded_pretrained_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
     print("loaded_pretrained_rgm: ", loaded_pretrained_rgm)
     # loaded_pretrained_rgm=r"model\v1\output\lossmin\pretrain-sf-11.ckpt"
-    # loaded_pretrained_rgm=r"model\v1\output\lossmin\val_loss_pretrain.ckpt"
+    # loaded_pretrained_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v9.ckpt"
     rgm_logs = os.path.join(output_dir, f"rgm_log")
     os.makedirs(rgm_logs, exist_ok=True)
 
@@ -73,13 +71,7 @@ if __name__ == '__main__':
                                         version="rgm_finetune")
 
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
-    # checkpoint_callback = pl.callbacks.ModelCheckpoint(
-    #     dirpath=output_dir, 
-    #     filename=model_path_fintune_rgm_run,
-    #     monitor="val_loss",
-    #     mode="min",
-    #     save_top_k=1,
-    #     verbose=True)
+
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath="model\\v1\\output\\lossmin",
         filename="val_loss_finetune",  # seems does not used
@@ -117,7 +109,7 @@ if __name__ == '__main__':
     # 新增早停回调（监控 val_loss）
     early_stop_callback = pl.callbacks.EarlyStopping(
         monitor="val_loss",    # 监控验证损失
-        patience=50,           # 连续10个epoch未改善则停止
+        patience=30,           # 连续10个epoch未改善则停止
         mode="min",            # 监控指标越小越好
         verbose=True           # 打印停止信息
     )

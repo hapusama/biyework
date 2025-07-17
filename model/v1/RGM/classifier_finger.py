@@ -1,26 +1,33 @@
 import numpy as np
+from sklearn.base import defaultdict
 import torch
 import os
 import torch.nn as nn
 from src.parameter_paser import parse_args_finetune
 import torch.optim as optim
-from src.dataset import generate_three_loader_v3
+from src.dataset import generate_three_loader_v3,generate_three_loader_v2
+from src.dataset import generate_three_dataset_v2, ComplexDatasetLocs
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+from collections import defaultdict
 # 模型配置
 batch_size = 128
 input_dim=8
 mode='generate'
 # mode='test'
 # mode='original'
+# mode="ori"
 num_classes=21
 # 批次的大小
 lr = 1e-2
 # 优化器的学习率
-valid_size = 0.2
-test_size=0.1
+valid_size = 0.05
+test_size=0.25
 num_epochs = 100
 # num_epochs=250
-new_path = r'd:\Desktop\PHD\reasearch\biyework\maml'
+new_path = r'd:\Desktop\PHD\research\biyework\maml'
+ori_pth = r"model\v1\input\floor3_sf_11_pretrain_dataset.pth"
+location_vector_path = r"model\v1\output\location_vector_v2.csv"
 from tqdm import tqdm
 # 3. 构建模型
 class LocationClassifier(nn.Module):
@@ -56,10 +63,12 @@ if "__main__"==__name__:
     print(f"input_data_pth: {input_data_pth}")
     
     complex_dataset_generated_real=torch.load(input_data_pth)
+    
     train_loader,valid_loader,test_loader=generate_three_loader_v3(complex_dataset_generated_real, 
                                                                    batch_size, 
                                                                    valid_size, 
                                                                    test_size)
+
     print(f"train_loader: {len(train_loader)}, valid_loader: {len(valid_loader)}, test_loader: {len(test_loader)}")
     # 初始化模型
     model = LocationClassifier(input_dim, num_classes)
@@ -127,20 +136,35 @@ if "__main__"==__name__:
         correct = 0
         total = 0
         with torch.no_grad():
+            label_correct = defaultdict(int)
+            label_total = defaultdict(int)      
             for batch_idx,(_,data_batch_real,_,label_int_batch) in enumerate(test_loader):
                 data_batch_real, label_int_batch = data_batch_real.to(device), label_int_batch.to(device)
                 data_batch_real = data_batch_real.squeeze(1)
                 # data_batch_real = data_batch_real.view(-1, input_dim)
                 outputs = model(data_batch_real)
                 _, predicted = torch.max(outputs.data, 1)
+                for true_label, pred_label in zip(label_int_batch.cpu().numpy(), predicted.cpu().numpy()):
+                    label_total[true_label] += 1
+                    if true_label == pred_label:
+                        label_correct[true_label] += 1
                 total += label_int_batch.size(0)
-                # 把匹配成功的点打印出来
-                matched_labels = label_int_batch[predicted == label_int_batch]
-                print(f"Matched Labels: {matched_labels.cpu().numpy()}")
-                
                 correct += (predicted == label_int_batch).sum().item()
         accuracy = correct / total
+        
         print(f"Test Accuracy: {accuracy:.4f}")
+        labels = list(label_total.keys())
+        accuracies = [label_correct[l] / label_total[l] if label_total[l] > 0 else 0 for l in labels]
+
+        plt.figure(figsize=(10, 6))
+        plt.bar(labels, accuracies, color='skyblue')
+        plt.xlabel('Label')
+        plt.ylabel('Accuracy')
+        plt.title('Per-label Accuracy')
+        plt.xticks(labels)
+        plt.ylim(0, 1)
+        plt.tight_layout()
+        plt.show()
 
     if mode=='original':
         for epoch in range(num_epochs):
@@ -193,7 +217,71 @@ if "__main__"==__name__:
                 correct += (predicted == label_int_batch).sum().item()
         accuracy = correct / total
         print(f"Test Accuracy: {accuracy:.4f}")
+    if mode=="ori" :
+        loaded_data = torch.load(ori_pth)
+        rssi = loaded_data['rssi']  # shape [24576,7]
+        snr = loaded_data['snr']
+        label = loaded_data['label']
+        
+        complex_dataset = ComplexDatasetLocs(rssi, 
+                                            snr, 
+                                            label, 
+                                            location_vector_path
+                                            )
+        train_set,valid_set,test_set=generate_three_dataset_v2(complex_dataset, 
+                                                                    valid_size, 
+                                                                    test_size)
+        train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True)
+        valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size, shuffle=False)
+        test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False)
+        for epoch in range(num_epochs):
+            total_loss = 0
+            for (input_vec,_,label) in tqdm(train_loader):
+                input_vec = input_vec.to(device)
+                label = label.to(device)
+                optimizer.zero_grad()
+                outputs = model(input_vec)
+                loss = criterion(outputs, label)
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
+            model.eval()
+            valid_loss = 0
+            with torch.no_grad():
+                for batch_idx,(input_vec,_,label) in enumerate(valid_loader):
+                    input_vec = input_vec.to(device)
+                    label = label.to(device)
+                    outputs = model(input_vec)
+                    loss = criterion(outputs, label)
+                    valid_loss += loss.item()
+                    
+            valid_loss /= len(valid_loader)
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(train_loader):.4f},Validation Loss: {valid_loss:.4f}")
+            # 更新学习率
+            scheduler.step(valid_loss)
+            # 如果验证损失没有改善，则保存当前模型
+            torch.save(model.state_dict(), model_path_train)
+        # 加载模型
+        model.load_state_dict(torch.load(model_path_train))
+        # 6. 测试模型
+        model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for batch_idx,(input_vec,_,label) in enumerate(test_loader):
+                input_vec, label = input_vec.to(device), label.to(device)
+                # input_vec = input_vec.view(-1, input_dim)
+                outputs = model(input_vec)
+                _, predicted = torch.max(outputs.data, 1)
+                total += label.size(0)
+                # 把匹配成功的点打印出来
+                matched_labels = label[predicted == label]
+                print(f"Matched Labels: {matched_labels.cpu().numpy()}")
 
+                correct += (predicted == label).sum().item()
+        accuracy = correct / total
+        print(f"Test Accuracy: {accuracy:.4f}")
+    
     if mode=='test':
         # 加载模型
         model.load_state_dict(torch.load(model_path_train))
@@ -216,4 +304,6 @@ if "__main__"==__name__:
                 correct += (predicted == label_int_batch).sum().item()
         accuracy = correct / total
         print(f"Test Accuracy: {accuracy:.4f}")
+        
+        
 

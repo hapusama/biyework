@@ -75,7 +75,7 @@ def txt_to_csv(file_path):
                         augmented_data = []
                         for _, row in df.iterrows():
                             rssi_values = row[rssi_columns].astype(float).values
-                            for _ in range(40):
+                            for _ in range(60):
                                 noise = np.random.normal(0, 1, size=rssi_values.shape)
                                 augmented_rssi = rssi_values + noise
                                 augmented_row = row.copy()
@@ -152,8 +152,7 @@ def csv_to_csv(file_floor,PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv",loca
                     all_data=pd.concat([all_data,temp_df], ignore_index=True)
                     
                     all_data['location_id'] = all_data['location_id'].astype(str).str.replace('.0', '', regex=False)
-                    all_data.loc[all_data['location_id'].str.isnumeric(), 'location_id'] = all_data.loc[all_data['location_id'].str.isnumeric(), 'location_id'].astype(int)
-        
+                    all_data.loc[all_data['location_id'].str.isnumeric(), 'location_id'] = all_data.loc[all_data['location_id'].str.isnumeric(), 'location_id'].astype(int)    
         
         all_data=all_data.dropna()
         all_data=all_data.drop_duplicates()
@@ -168,8 +167,11 @@ def csv_to_pth(
     test_name='test.pth',
     finger_name='finger.pth',
     pretrain_sf=[7,8,9,10,11,12],
+    pretrain_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],
     finetune_sf=[7,8,9,10,11,12],
+    finetune_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],
     test_sf=[7,8,9,10,11,12],
+    test_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],
     location_vector_path=r'model\v1\output\location_vector_v2.csv',
     max_pretrain=2000,
     max_finetune=500,
@@ -200,16 +202,16 @@ def csv_to_pth(
         if feature in df.columns:
             df[feature] = (df[feature] - df[feature].mean()) / df[feature].std()+1e-3  # 防止除以0
     # 数据集划分
-    pretrain_df = df[df['sf'].isin(pretrain_sf)]
-    pretrain_df = pretrain_df.groupby(['location_id', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_pretrain), random_state=42))
+    pretrain_df = df[df['sf'].isin(pretrain_sf) & df['idx'].isin(pretrain_label)]
+    pretrain_df = pretrain_df.groupby(['idx', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_pretrain), random_state=42))
     remaining_df = df.drop(pretrain_df.index)
 
-    finetune_df = remaining_df[remaining_df['sf'].isin(finetune_sf)]
-    finetune_df = finetune_df.groupby(['location_id', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_finetune), random_state=42))
+    finetune_df = remaining_df[remaining_df['sf'].isin(finetune_sf) & remaining_df['idx'].isin(finetune_label)]
+    finetune_df = finetune_df.groupby(['idx', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_finetune), random_state=42))
     remaining_df = remaining_df.drop(finetune_df.index)
 
-    test_df = remaining_df[remaining_df['sf'].isin(test_sf)]
-    test_df = test_df.groupby(['location_id', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_test), random_state=42))
+    test_df = remaining_df[remaining_df['sf'].isin(test_sf) & remaining_df['idx'].isin(test_label)]
+    test_df = test_df.groupby(['idx', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_test), random_state=42))
     remaining_df = remaining_df.drop(test_df.index)
     # 检查重叠
     assert len(set(pretrain_df.index) & set(finetune_df.index)) == 0
@@ -254,18 +256,21 @@ def csv_to_pth(
         'label': torch.tensor(pretrain_df['location_id'].values, dtype=torch.int64)
     }, finger_pth_path)
 
+
 if __name__ == "__main__":
     # =================FLOOR3数据集生成========================= #
     # txt_to_csv(f"FLOOR3")
     # csv_to_csv(f"FLOOR3",PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv")
-    csv_to_pth(f"FLOOR3",
-               pretrain_name="floor3_sf_11_pretrain_dataset.pth",
-                finetune_name="floor3_sf_11_finetune_dataset.pth",
-                test_name="floor3_sf_11_test_dataset.pth",
-               finger_name="finger_sf_11_floor3_dataset.pth",
-               pretrain_sf=[11],finetune_sf=[11],test_sf=[11],
-               max_pretrain=1100,max_finetune=0,max_test=500)
-    
+    # csv_to_pth(f"FLOOR3",
+    #            pretrain_name="floor3_sf_11_pretrain_dataset.pth",
+    #            pretrain_sf=[11],
+    #             finetune_name="floor3_sf_10_finetune_dataset.pth",
+    #             finetune_sf=[10],
+    #             finetune_label=[0,1,3,5,7,9,12,15,17,19,20],
+    #             test_name="floor3_sf_10_test_dataset.pth",
+    #             test_sf=[10],
+    #            finger_name="finger_sf_10_floor3_dataset.pth",
+    #            max_pretrain=2000,max_finetune=2000,max_test=500)
     # =================FLOOR4数据集生成========================= #
     # txt_to_csv(f"FLOOR4")
     # csv_to_csv(f"FLOOR4",PLM_params_path=r"model\v1\output\PLM_FLOOR4.csv")
@@ -291,13 +296,15 @@ if __name__ == "__main__":
     #     print(f"snr Dimension {i}: min={pretrain_pth['snr'][:, i].min().item()}, max={pretrain_pth['snr'][:, i].max().item()}")
     
     pretrain_pth=torch.load('model\\v1\\input\\floor3_sf_11_pretrain_dataset.pth')
-    test_pth=torch.load('model\\v1\\input\\floor3_sf_11_test_dataset.pth')
-    finetune_pth=torch.load('model\\v1\\input\\floor3_sf_11_finetune_dataset.pth')
-    print(pretrain_pth['label'].shape)
-    print(finetune_pth['rssi'].shape)
-    print(test_pth['label'].shape)
-    print(pretrain_pth['sf'].unique())
-    print(finetune_pth['sf'].unique())
-    print(test_pth['sf'].unique())  
-    print(finetune_pth['snr'])
-    
+    test_pth=torch.load('model\\v1\\input\\floor3_sf_10_test_dataset.pth')
+    finetune_pth=torch.load('model\\v1\\input\\floor3_sf_10_finetune_dataset.pth')
+    print("pretrain label shape: ",pretrain_pth['label'].shape)
+    print("pretrain label unique: ", pretrain_pth['label'].unique())
+    print("finetune rssi shape: ",finetune_pth['rssi'].shape)
+    print("finetune label unique: ",finetune_pth['label'].unique())
+    print("test label shape: ",test_pth['label'].shape)
+    print("test label unique: ", test_pth['label'].unique())
+    print("pretrain sf unique values: ",pretrain_pth['sf'].unique())
+    print("finetune sf unique values: ",finetune_pth['sf'].unique())
+    print("test sf unique values: ",test_pth['sf'].unique())  
+    print("finetune snr unique values: ",finetune_pth['snr'].unique())

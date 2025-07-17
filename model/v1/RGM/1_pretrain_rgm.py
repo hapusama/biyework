@@ -93,7 +93,7 @@ if __name__ == '__main__':
     # 新增早停回调（监控 val_loss）
     early_stop_callback = pl.callbacks.EarlyStopping(
         monitor="val_loss",    # 监控验证损失
-        patience=25,           # 连续10个epoch未改善则停止
+        patience=30,           # 连续30个epoch未改善则停止
         mode="min",            # 监控指标越小越好
         verbose=True           # 打印停止信息
     )

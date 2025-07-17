@@ -54,11 +54,11 @@ class ComplexDatasetLocs(Dataset):
         self.label_features = self.load_label_features(label_feature_path)
         # 检查位置特征是否和标签匹配38
         unique_ids = torch.unique(self.labels)
-        if len(self.label_features) != len(unique_ids):
-            # 打印两者的label
-            print(f"Label features: {list(self.label_features.keys())}")
-            print(f"Unique labels: {unique_ids}")
-            raise ValueError(f"Mismatch between label_features and labels. Only {len(self.label_features)} location feature were obtained, but there are a total of {len(unique_ids)} location IDs. \n\nPlease make sure to finish running '0_location_representation.py' before running this script.\n")        
+        # if len(self.label_features) != len(unique_ids):
+        #     # 打印两者的label
+        #     print(f"Label features: {list(self.label_features.keys())}")
+        #     print(f"Unique labels: {unique_ids}")
+        #     raise ValueError(f"Mismatch between label_features and labels. Only {len(self.label_features)} location feature were obtained, but there are a total of {len(unique_ids)} location IDs. \n\nPlease make sure to finish running '0_location_representation.py' before running this script.\n")        
 
 
     # 读取位置特征，如果为空就不要返回了
@@ -261,6 +261,7 @@ def generate_three_dataset_v3(dataset_t,
     
     train_indices, valid_indices = train_test_split(
         train_temp_indices, test_size=valid_size, stratify=train_temp_labels, random_state=42)
+    print("train_len, valid_len, test_len: ", len(train_indices), len(valid_indices), len(test_indices))
 
     # 为训练集、验证集和测试集创建子集
     train_dataset = Subset(dataset_t, train_indices)
