@@ -19,7 +19,7 @@ num_timesteps: 1000
 schedule: "linear"    # cosine, linear, quadratic, sigmoid
 data_channels: 2      # number of data channels（unet卷积层通道数）
 channel_dimension_scale: [1, 2, 4,8,16]
-num_epochs_rgm: 100
+num_epochs_rgm: 150
 batch_size_rgm: 256
-learning_rate_rgm: 0.01
+learning_rate_rgm: 0.001
 rgm_pretrain_path: "1_pretrained_rgm.ckpt"

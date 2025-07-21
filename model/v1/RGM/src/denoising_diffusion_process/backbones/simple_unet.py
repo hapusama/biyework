@@ -266,6 +266,37 @@ class ComplexTimeBlock(nn.Module):
 
         return h + residual_x
 
+# class classEmbedding(nn.Module):
+
+#     def __init__(self, loc_dim, dim):
+#         super().__init__()
+#         self.loc_dim = loc_dim
+#         self.dim = dim
+#         self.class_emb = nn.Sequential(
+#             nn.LayerNorm(loc_dim),
+#             nn.Linear(loc_dim, dim), 
+#             nn.GELU(),
+#             nn.Linear(dim, dim * 4),
+#             nn.GELU(),
+#             nn.Linear(dim * 4, dim * 4),
+#             nn.GELU(),
+#             nn.Linear(dim * 4, dim),
+#         )
+#     def forward(self, location):
+#         residual = location
+#         x = location
+#         for emb in self.class_emb:
+#             # 只有当当前层是nn.Linear且输入输出维度相同，才做残差连接
+#             if isinstance(emb, nn.Linear) and emb.in_features == emb.out_features and x.shape[-1] == emb.in_features:
+#                 x = emb(x) + residual
+#                 residual = x  # 更新residual为当前输出
+#             else:
+#                 x = emb(x)
+#             # 如果当前层是nn.Linear，更新residual为当前输出
+#             if isinstance(emb, nn.Linear):
+#                 residual = x
+#         return x
+                
 
 ##### Main Model #####
 class UnetComplexBlock(nn.Module):

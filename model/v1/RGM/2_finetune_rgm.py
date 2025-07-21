@@ -25,7 +25,6 @@ if __name__ == '__main__':
     frac_for_valid = args.frac_for_valid
     frac_for_test = args.frac_for_test
 
-    # FLOOR3.pth
     data_path_area_1 = data_path = os.path.join(input_dir, args.data_name)
     print(f"data_path_area_1: {data_path_area_1}")
     loaded = torch.load(data_path_area_1)
@@ -35,7 +34,6 @@ if __name__ == '__main__':
     label = loaded['label']
 
     location_vector_path = os.path.join(output_dir, args.location_vector_name)
-    # 生成一个数据集, 32000个数据，每个数据有amplitude, phase, label, location_vector
     complex_dataset = ComplexDatasetLocs(rssi, 
                                          snr, 
                                          label, 
@@ -62,7 +60,7 @@ if __name__ == '__main__':
     loaded_pretrained_rgm = os.path.join(output_dir, args.rgm_pretrain_path)
     print("loaded_pretrained_rgm: ", loaded_pretrained_rgm)
     # loaded_pretrained_rgm=r"model\v1\output\lossmin\pretrain-sf-11.ckpt"
-    # loaded_pretrained_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v9.ckpt"
+    # loaded_pretrained_rgm=r"model\v1\output\lossmin\val_loss_pretrain-v1.ckpt"
     rgm_logs = os.path.join(output_dir, f"rgm_log")
     os.makedirs(rgm_logs, exist_ok=True)
 

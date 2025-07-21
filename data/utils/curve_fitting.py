@@ -8,13 +8,13 @@ import matplotlib.pyplot as plt
 def path_loss_model(d, A, n):
     return A - 10 * n * np.log10(d)
 
-fitting_data_path=r'data\processedData\FLOOR4\all_data.csv'
+fitting_data_path=r'data\processedData\FLOOR3\all_data.csv'
 location_vector_path=r'model\v1\output\location_vector_v2.csv'
 label_coordinate_path=r'PicdataProcessing\image.png'
 area1_list=[0,1,2,3,4,5]
 area2_list=[6,7,8,9,10,11,12,13,14]
 area3_list=[15,16,17,18,19,20]
-PLM_save_path=r"model\v1\output\PLM_FLOOR4.csv"
+PLM_save_path=r"model\v1\output\PLM_FLOOR3.csv"
 
 def fit_path_loss_per_sf(data_df, df, area_lists, area_names, colors, path_loss_model):
     """
@@ -42,6 +42,7 @@ def fit_path_loss_per_sf(data_df, df, area_lists, area_names, colors, path_loss_
         
         # 遍历每个定义的区域
         for area_idx, area_location_ids in enumerate(area_lists):
+                
             all_distances = []
             all_rssis = []
             
@@ -55,7 +56,7 @@ def fit_path_loss_per_sf(data_df, df, area_lists, area_names, colors, path_loss_
                 # 获取该位置的真实距离
                 distance = df[df['location_id'] == i]['distance_true'].values[0]
                 # 获取对应的RSSI值
-                rssi = sample_df['realtime_average_rssi'].values
+                rssi = sample_df['realtime_average_rssi'].values 
                 
                 # 将距离和RSSI值添加到列表中
                 all_distances.extend([distance] * len(rssi))
@@ -94,16 +95,62 @@ def fit_path_loss_per_sf(data_df, df, area_lists, area_names, colors, path_loss_
             # 2. 将当前参数字典添加到列表中
             all_params_data.append(param_data)
 
-        # # 设置图表的标签、标题和图例
-        # plt.xlabel('Distance (m)')
-        # plt.ylabel('RSSI (dBm)')
-        # plt.legend()
-        # plt.title(f'RSSI Path Loss Curve Fitting for Three Areas (SF={sf})')
-        # plt.grid(True)
-        # plt.tight_layout()
-        
-        # # 显示图表
-        # plt.show()
+        # # 对area1重新进行拟合
+        # idx_base = 6 # 计算网关到idx的path loss
+        # average_rssi_idx = data_df[(data_df['location_id'] == idx_to_location_id[idx_base]) & (data_df['sf'] == sf)]['realtime_average_rssi'].mean()
+        # # 计算area1中的点与idx为7的点之间的距离，并根据距离和rssi进行重新拟合area1
+        # area1_distances = []
+        # area1_rssis = []
+        # # 重新便利area1
+        # for i in area1_location_id_list:
+        #     if i == idx_to_location_id[idx_base]:
+        #         continue
+        #     # 计算与idx_base的距离
+        #     coords_i = (df[df['location_id'] == i]['true_x'].values[0],df[df['location_id'] == i]['true_y'].values[0])
+        #     coords_base = (df[df['location_id'] == idx_to_location_id[idx_base]]['true_x'].values[0],
+        #                    df[df['location_id'] == idx_to_location_id[idx_base]]['true_y'].values[0])
+        #     distance_base = np.linalg.norm(np.array(coords_i) - np.array(coords_base))
+        #     # 获取idx_base的真实距离
+        #     distance_idx_base = df[df['location_id'] == idx_to_location_id[idx_base]]['distance_true'].values[0]
+        #     distance = abs(distance_base - distance_idx_base)
+        #     # 获取对应的RSSI值
+        #     rssi_values = data_df[(data_df['location_id'] == i) & (data_df['sf'] == sf)]['realtime_average_rssi'].values
+        #     # 创建与rssi_values相同长度的average_rssi_idx数组
+        #     # average_rssi_array = np.full_like(rssi_values, average_rssi_idx)
+        #     # rssi = rssi_values - average_rssi_array
+        #     rssi = rssi_values
+        #     if data_df[(data_df['location_id'] == i) & (data_df['sf'] == sf)]['realtime_average_rssi'].empty:
+        #         continue
+        #     area1_distances.extend([distance] * len(rssi))
+        #     area1_rssis.extend(rssi)
+
+        # if area1_distances and area1_rssis:
+        #     area1_distances = np.array(area1_distances)
+        #     area1_rssis = np.array(area1_rssis)
+        #     popt_area1, _ = curve_fit(path_loss_model, area1_distances, area1_rssis, p0=[-40, 2])
+        #     d_fit_area1 = np.linspace(area1_distances.min(), area1_distances.max(), 100)
+        #     rssi_fit_area1 = path_loss_model(d_fit_area1, *popt_area1)
+        #     plt.plot(d_fit_area1, rssi_fit_area1, color='m', linestyle='--', label=f'Area1 Refit: A={popt_area1[0]:.2f}, n={popt_area1[1]:.2f}')
+        #     print(f'Area1 重新拟合参数: A={popt_area1[0]:.2f}, n={popt_area1[1]:.2f}')
+        #     # 用重新拟合的参数覆盖当前sf下area1的数据
+        #     for i, param in enumerate(all_params_data):
+        #         if param['sf'] == sf and str(param['Area']) == '1':
+        #             all_params_data[i] = {
+        #                 'sf': sf,
+        #                 'Area': '1',
+        #                 'A': popt_area1[0],
+        #                 'n': popt_area1[1]
+        #             }
+        #             break
+        #     else:
+        #         # 如果没有找到，则添加
+        #         all_params_data.append({
+        #             'sf': sf,
+        #             'Area': '1',
+        #             'A': popt_area1[0],
+        #             'n': popt_area1[1]
+        #         })
+            
         
     # 3. 在所有循环结束后，将收集到的数据一次性写入CSV文件
     if all_params_data:

@@ -239,7 +239,7 @@ def generate_three_dataset_v3(dataset_t,
     unique_labels = np.unique(labels)
     num_selected_labels = int(len(unique_labels) * ratios)
     selected_label_ids = np.random.choice(unique_labels, num_selected_labels, replace=False)
-
+    print(f"Selected label IDs: {selected_label_ids}")
     # 筛选选定标签ID的索引
     filtered_indices = [i for i, label in enumerate(labels) if label in selected_label_ids]
     filtered_labels = labels[filtered_indices]

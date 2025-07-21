@@ -142,6 +142,33 @@ def csv_to_csv(file_floor,PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv",loca
                     tp=2    #后续修改这里的hardcode
                     merged_df['tp'] = tp
                     
+                    # 合并true_x, true_y到merged_df
+                    merged_df = pd.merge(
+                        merged_df,
+                        location_df[['idx', 'true_x', 'true_y']],
+                        on='idx',
+                        how='left'
+                    )
+                    # 对Area为1的点，distance_true替换为当前点与idx为6的点的欧几里得距离
+                    if 'Area' in merged_df.columns and 'idx' in merged_df.columns and 'distance_true' in merged_df.columns:
+                        if 6 in location_df['idx'].values:
+                            idx6_row = location_df[location_df['idx'] == 6].iloc[0]
+                            x6, y6 = idx6_row['true_x'], idx6_row['true_y']
+                            # 只对Area为1的点计算欧几里得距离
+                            area1_mask = merged_df['Area'] == 1
+                            # 获取当前点的x_true, y_true
+                            # 根据idx在location_df中查找true_x和true_y
+                            # 只对Area为1的点计算欧几里得距离
+                            if 6 in location_df['idx'].values:
+                                idx6_row = location_df[location_df['idx'] == 6].iloc[0]
+                                x6, y6 = idx6_row['true_x'], idx6_row['true_y']
+                                area1_mask = merged_df['Area'] == 1
+                                merged_df.loc[area1_mask, 'distance_true'] = np.sqrt(
+                                    (merged_df.loc[area1_mask, 'true_x'] - x6) ** 2 +
+                                    (merged_df.loc[area1_mask, 'true_y'] - y6) ** 2
+                                )
+                                # 可选：删除合并的true_x, true_y列
+                                merged_df = merged_df.drop(['true_x', 'true_y'], axis=1)
                     # 计算RSSI
                     valid_distances = merged_df['distance_true'] > 0
                     merged_df.loc[valid_distances, 'PLM_RSSI'] = merged_df.loc[valid_distances, 'A'] - 10 * merged_df.loc[valid_distances, 'n'] * np.log10(merged_df.loc[valid_distances, 'distance_true'])
@@ -264,23 +291,23 @@ if __name__ == "__main__":
     # csv_to_pth(f"FLOOR3",
     #            pretrain_name="floor3_sf_11_pretrain_dataset.pth",
     #            pretrain_sf=[11],
-    #             finetune_name="floor3_sf_10_finetune_dataset.pth",
-    #             finetune_sf=[10],
-    #             finetune_label=[0,1,3,5,7,9,12,15,17,19,20],
-    #             test_name="floor3_sf_10_test_dataset.pth",
-    #             test_sf=[10],
-    #            finger_name="finger_sf_10_floor3_dataset.pth",
-    #            max_pretrain=2000,max_finetune=2000,max_test=500)
+    #             finetune_name="floor3_sf_11_finetune_dataset.pth",
+    #             finetune_sf=[11],
+    #             finetune_label=[1,3,5,7,9,10,12,15,17,19,20],
+    #             test_name="floor3_sf_11_test_dataset.pth",
+    #             test_sf=[11],
+    #            finger_name="finger_sf_11_floor3_dataset.pth",
+    #            max_pretrain=1200,max_finetune=0,max_test=500)
     # =================FLOOR4数据集生成========================= #
     # txt_to_csv(f"FLOOR4")
-    # csv_to_csv(f"FLOOR4",PLM_params_path=r"model\v1\output\PLM_FLOOR4.csv")
-    # csv_to_pth(f"FLOOR4",
-    #            pretrain_name="floor4_sf_11_pretrain_dataset.pth",
-    #             finetune_name="floor4_sf_11_finetune_dataset.pth",
-    #             test_name="floor4_sf_11_test_dataset.pth",
-    #            finger_name="finger_sf_11_floor4_dataset.pth",
-    #            pretrain_sf=[11],finetune_sf=[11],test_sf=[11],
-    #            max_pretrain=0,max_finetune=500,max_test=550)
+    csv_to_csv(f"FLOOR4",PLM_params_path=r"model\v1\output\PLM_FLOOR4.csv")
+    csv_to_pth(f"FLOOR4",
+               pretrain_name="floor4_sf_11_pretrain_dataset.pth",
+                finetune_name="floor4_sf_11_finetune_dataset.pth",
+                test_name="floor4_sf_11_test_dataset.pth",
+               finger_name="finger_sf_11_floor4_dataset.pth",
+               pretrain_sf=[11],finetune_sf=[11],finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19],test_sf=[11],
+               max_pretrain=100,max_finetune=1200,max_test=500)
     
     # 验证生成的pth数据集
     # pretrain_pth=torch.load('model\\v1\\input\\floor4_sf_11_pretrain_dataset.pth')
@@ -296,8 +323,8 @@ if __name__ == "__main__":
     #     print(f"snr Dimension {i}: min={pretrain_pth['snr'][:, i].min().item()}, max={pretrain_pth['snr'][:, i].max().item()}")
     
     pretrain_pth=torch.load('model\\v1\\input\\floor3_sf_11_pretrain_dataset.pth')
-    test_pth=torch.load('model\\v1\\input\\floor3_sf_10_test_dataset.pth')
-    finetune_pth=torch.load('model\\v1\\input\\floor3_sf_10_finetune_dataset.pth')
+    test_pth=torch.load('model\\v1\\input\\floor4_sf_11_test_dataset.pth')
+    finetune_pth=torch.load('model\\v1\\input\\floor4_sf_11_finetune_dataset.pth')
     print("pretrain label shape: ",pretrain_pth['label'].shape)
     print("pretrain label unique: ", pretrain_pth['label'].unique())
     print("finetune rssi shape: ",finetune_pth['rssi'].shape)

@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.base import defaultdict
 import torch
 import os
+import pandas as pd
 import torch.nn as nn
 from src.parameter_paser import parse_args_finetune
 import torch.optim as optim
@@ -23,7 +24,7 @@ lr = 1e-2
 # 优化器的学习率
 valid_size = 0.05
 test_size=0.25
-num_epochs = 100
+num_epochs = 150
 # num_epochs=250
 new_path = r'd:\Desktop\PHD\research\biyework\maml'
 ori_pth = r"model\v1\input\floor3_sf_11_pretrain_dataset.pth"
@@ -86,7 +87,7 @@ if "__main__"==__name__:
         for epoch in range(num_epochs):
             model.train()
             total_loss = 0
-            for batch_idx,(data_batch_fake,_,_,label_int_batch) in enumerate(tqdm(train_loader)):
+            for batch_idx, (data_batch_fake, _, _, label_int_batch) in enumerate(tqdm(train_loader)):
                 data_batch_fake, label_int_batch = data_batch_fake.to(device), label_int_batch.to(device)
                 data_batch_fake = data_batch_fake.squeeze(1)
                 # 在训练循环中添加噪声
@@ -100,7 +101,7 @@ if "__main__"==__name__:
                 loss.backward()
                 optimizer.step()
                 total_loss += loss.item()
-            model.eval()
+                model.eval()
             valid_loss = 0
             with torch.no_grad():
                 for batch_idx,(data_batch_fake,data_batch_real,_,label_int_batch) in enumerate(valid_loader):
@@ -135,24 +136,41 @@ if "__main__"==__name__:
         model.eval()
         correct = 0
         total = 0
+        location_vector_df = pd.read_csv(location_vector_path)
+        coords = location_vector_df.set_index('idx')[['true_x', 'true_y']].to_dict('index')
+        adjacent_list = list(coords.keys())
         with torch.no_grad():
             label_correct = defaultdict(int)
-            label_total = defaultdict(int)      
-            for batch_idx,(_,data_batch_real,_,label_int_batch) in enumerate(test_loader):
+            label_total = defaultdict(int)
+            total_distance_error = 0.0
+            unmatched_count = 0
+            for batch_idx, (_, data_batch_real, _, label_int_batch) in enumerate(test_loader):
                 data_batch_real, label_int_batch = data_batch_real.to(device), label_int_batch.to(device)
                 data_batch_real = data_batch_real.squeeze(1)
-                # data_batch_real = data_batch_real.view(-1, input_dim)
                 outputs = model(data_batch_real)
                 _, predicted = torch.max(outputs.data, 1)
                 for true_label, pred_label in zip(label_int_batch.cpu().numpy(), predicted.cpu().numpy()):
                     label_total[true_label] += 1
                     if true_label == pred_label:
                         label_correct[true_label] += 1
+                    else:
+                        # 计算未匹配到的定位误差
+                        if true_label in coords and pred_label in coords:
+                            x1, y1 = coords[true_label]['true_x'], coords[true_label]['true_y']
+                            x2, y2 = coords[pred_label]['true_x'], coords[pred_label]['true_y']
+                            dist = np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+                            total_distance_error += dist
+                            unmatched_count += 1
                 total += label_int_batch.size(0)
                 correct += (predicted == label_int_batch).sum().item()
+            if unmatched_count > 0:
+                avg_distance_error = total_distance_error / total
+                print(f"Average localization error for unmatched labels: {avg_distance_error:.4f}")
+            else:
+                print("All labels matched, no localization error for unmatched labels.")
         accuracy = correct / total
-        
         print(f"Test Accuracy: {accuracy:.4f}")
+
         labels = list(label_total.keys())
         accuracies = [label_correct[l] / label_total[l] if label_total[l] > 0 else 0 for l in labels]
 
@@ -281,29 +299,3 @@ if "__main__"==__name__:
                 correct += (predicted == label).sum().item()
         accuracy = correct / total
         print(f"Test Accuracy: {accuracy:.4f}")
-    
-    if mode=='test':
-        # 加载模型
-        model.load_state_dict(torch.load(model_path_train))
-        # 6. 测试模型
-        model.eval()
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for batch_idx,(_,data_batch_real,_,label_int_batch) in enumerate(test_loader):
-                data_batch_real, label_int_batch = data_batch_real.to(device), label_int_batch.to(device)
-                data_batch_real = data_batch_real.squeeze(1)
-                # data_batch_real = data_batch_real.view(-1, input_dim)
-                outputs = model(data_batch_real)
-                _, predicted = torch.max(outputs.data, 1)
-                total += label_int_batch.size(0)
-                # 把匹配成功的点打印出来
-                matched_labels = label_int_batch[predicted == label_int_batch]
-                print(f"Matched Labels: {matched_labels.cpu().numpy()}")
-                
-                correct += (predicted == label_int_batch).sum().item()
-        accuracy = correct / total
-        print(f"Test Accuracy: {accuracy:.4f}")
-        
-        
-
