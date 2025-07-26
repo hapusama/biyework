@@ -24,7 +24,7 @@ lr = 1e-2
 # 优化器的学习率
 valid_size = 0.05
 test_size=0.25
-num_epochs = 150
+num_epochs = 200
 # num_epochs=250
 new_path = r'd:\Desktop\PHD\research\biyework\maml'
 ori_pth = r"model\v1\input\floor3_sf_11_pretrain_dataset.pth"
@@ -60,9 +60,10 @@ if "__main__"==__name__:
     input_dir = r"model\v1\input"
     output_dir = r"model\v1\output"
     input_data_pth=os.path.join(output_dir,args.data_name_fake)
+    print("input_data_pth: ", input_data_pth)
     model_path_train=os.path.join(output_dir,args.save_model_name_fake)
-    print(f"input_data_pth: {input_data_pth}")
-    
+    print(f"model_path_train: {model_path_train}")
+
     complex_dataset_generated_real=torch.load(input_data_pth)
     
     train_loader,valid_loader,test_loader=generate_three_loader_v3(complex_dataset_generated_real, 

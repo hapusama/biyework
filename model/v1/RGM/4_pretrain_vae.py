@@ -36,17 +36,23 @@ if __name__ == '__main__':
     input_dim = args.input_dim
     latent_dim = args.latent_dim
     condition_dim = args.condition_dim
-    encoder_layers = args.encoder_layers
-    decoder_layers = args.decoder_layers
+    dim_mults = args.dim_mults
     batch_size = args.batch_size
     learning_rate = args.learning_rate
-    print(f"input_dim: {input_dim}, condition_dim: {condition_dim}, encoder_layers: {encoder_layers}, decoder_layers: {decoder_layers}, latent_dim: {latent_dim}, batch_size: {batch_size}, learning_rate: {learning_rate}")
+    print(f"Model Configuration:")
+    print(f"- Input Dimension: {input_dim}")
+    print(f"- Condition Dimension: {condition_dim}")
+    print(f"- Latent Dimension: {latent_dim}")
+    print(f"- Dimension Multipliers: {dim_mults}")
+    print(f"- Batch Size: {batch_size}")
+    print(f"- Learning Rate: {learning_rate}")
 
-    vae_model = ConditionalVAE(input_dim=input_dim, 
-                   condition_dim=condition_dim, 
-                   encoder_layers=encoder_layers, 
-                   latent_dim=latent_dim,
-                   decoder_layers=decoder_layers,learning_rate=learning_rate)
+    vae_model = ConditionalVAE(
+        input_dim=input_dim,
+        condition_dim=condition_dim,
+        latent_dim=latent_dim,
+        dim_mults=dim_mults,
+        learning_rate=learning_rate)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath="model\\v1\\output\\vae\\lossmin",
         filename="vae_pretrain_lossmin",  # seems does not used

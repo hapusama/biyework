@@ -14,6 +14,7 @@ if __name__ == '__main__':
 
     # 加载数据
     data_path = config.dataset_ft
+    print(f"Using dataset: {data_path}")
     loaded = torch.load(data_path)
     rssi = loaded['rssi']
     snr = loaded['snr']
@@ -24,8 +25,7 @@ if __name__ == '__main__':
     # 读取参数
     input_dim = config.input_dim
     condition_dim = config.condition_dim
-    encoder_layers = config.encoder_layers
-    decoder_layers = config.decoder_layers
+    dim_mults = config.dim_mults
     batch_size = config.batch_size
     learning_rate = config.learning_rate
     latent_dim = config.latent_dim
@@ -36,8 +36,7 @@ if __name__ == '__main__':
         checkpoint_path=save_model_path,
         input_dim=input_dim,
         condition_dim=condition_dim,
-        encoder_layers=encoder_layers,
-        decoder_layers=decoder_layers,
+        dim_mults=dim_mults,
         latent_dim=latent_dim,
         learning_rate=learning_rate,
     )
