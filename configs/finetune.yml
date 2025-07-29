@@ -30,8 +30,8 @@ rgm_pretrain_path: "1_pretrained_rgm.ckpt"
 ##### New parameters for fine-tuning rGM #####
 data_name_ft: "floor3_sf_10_test_dataset.pth"
 ratios_locs: 1
-data_name_fake: "floor3_sf_11_area_fake_vae.pth"
-save_model_name_fake: "classifier_fingerprint-vae.ckpt"
+data_name_fake: "floor3_sf_10_fake.pth"
+save_model_name_fake: "classifier_fingerprint.ckpt"
 num_epochs_rgm_ft: 200
 rgm_fine_tune_path: "2_finetuned_rgm.ckpt"
 

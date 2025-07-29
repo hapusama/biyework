@@ -108,5 +108,5 @@ if __name__ == '__main__':
     trainer.fit(model, train_loader, val_loader)
 
     trainer.save_checkpoint(model_path_train_rgm)
-
+    input("Training complete. Press Enter to exit...")
         
