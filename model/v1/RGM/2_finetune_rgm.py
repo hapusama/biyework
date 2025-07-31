@@ -150,7 +150,7 @@ if __name__ == '__main__':
     )
     
     # 准备回调列表
-    callbacks = [EMA(0.9999), lr_monitor, checkpoint_callback,]
+    callbacks = [EMA(0.9999), lr_monitor, checkpoint_callback,early_stop_callback]
     
     # 只有在启用了逐步解冻时才添加该回调
     if freeze_args.freeze_params["enable_gradual_unfreeze"] and gradual_unfreeze_callback:

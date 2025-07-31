@@ -49,8 +49,8 @@ if __name__ == '__main__':
     data_channels = args.data_channels
     dimension_scale = args.channel_dimension_scale
     signal_feature_dim=args.signal_feature_dim
-    # loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
-    loaded_fine_tuned_rgm=r"model\v1\output\2_finetuned_rgm.ckpt"
+    loaded_fine_tuned_rgm = os.path.join(output_dir, args.rgm_fine_tune_path)
+    # loaded_fine_tuned_rgm=r"model\v1\output\2_finetuned_rgm.ckpt"
     # loaded_fine_tuned_rgm=r"model\v1\output\1_pretrained_rgm.ckpt"
     # loaded_fine_tuned_rgm = r"model\v1\output\lossmin\val_loss_finetune.ckpt"
     sampler_ddpm = DDPM_Sampler(num_timesteps=num_timesteps, schedule=schedule)
@@ -86,6 +86,9 @@ if __name__ == '__main__':
         print("\nGenerating CSI data for Location ID: {}\n".format(loc_int))
         # real_data[0]: [4,]
         real_data, loc_tensor, loc_int_tensor = get_features_by_label_v4(complex_dataset, loc_int)
+        if len(real_data)==1:
+            print("This point does not exit")
+            continue
         batch_input = loc_tensor.to(device)
         # 600
         number_samples_generated = real_data.shape[0]

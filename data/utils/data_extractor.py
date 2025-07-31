@@ -75,7 +75,7 @@ def txt_to_csv(file_path):
                         augmented_data = []
                         for _, row in df.iterrows():
                             rssi_values = row[rssi_columns].astype(float).values
-                            for _ in range(60):
+                            for _ in range(100):
                                 noise = np.random.normal(0, 1, size=rssi_values.shape)
                                 augmented_rssi = rssi_values + noise
                                 augmented_row = row.copy()
@@ -126,7 +126,6 @@ def csv_to_csv(file_floor,PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv",loca
                     temp_df=pd.read_csv(os.path.join(sf_path,csv_file))
                     temp_df['location_id'] = name
                     temp_df = temp_df[['realtime_average_rssi', 'average_rssi', 'rssi_variance', 'snr', 'median_rssi', 'mode_rssi', 'rssi_skewness', 'rssi_kurtosis', 'sf', 'tp', 'location_id']]
-                    
                     location_df=pd.read_csv(location_vector_path)
                     location_to_idx=dict(zip(location_df['location_id'], location_df['idx']))
                     location_to_distance_true=dict(zip(location_df['location_id'], location_df['distance_true']))
@@ -194,8 +193,11 @@ def csv_to_pth(
 
     # 特征列
     # data_features = ['average_rssi','median_rssi','mode_rssi','rssi_skewness','rssi_kurtosis', "snr"] * times
+    # 我们的
     data_features = ['average_rssi','rssi_variance', 'median_rssi', 'mode_rssi', "snr","residual"] * times
     
+    # orch-rssi
+    # data_features = ['average_rssi','rssi_variance', 'median_rssi',"snr"] * times
     # 将df的data_features特征列进行归一化
     for feature in data_features:
         if feature in df.columns:
@@ -257,35 +259,22 @@ def csv_to_pth(
 
 
 if __name__ == "__main__":
-    # =================FLOOR3数据集生成========================= #
+    pretrain_pth_name = "floor5_sf_11_pretrain_dataset.pth"
+    finetune_pth_name = "floor5_sf_11_finetune_dataset.pth"
+    test_pth_name = "floor5_sf_11_test_dataset.pth"
     # txt_to_csv(f"FLOOR3")
-    # csv_to_csv(f"FLOOR3",PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv")
-    csv_to_pth(f"FLOOR3",
-               pretrain_name="floor3_sf_11_pretrain_dataset.pth",
+    # csv_to_csv(f"FLOOR5",PLM_params_path=r"model\v1\output\PLM_FLOOR5.csv")
+    # finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19]
+    csv_to_pth(f"FLOOR5",
+               pretrain_name=pretrain_pth_name,
                pretrain_sf=[11],
-                finetune_name="floor3_sf_10_finetune_dataset.pth",
-                finetune_sf=[10],
+                finetune_name="xx",
+                finetune_sf=[11],
                 finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19],
-                test_name="floor3_sf_10_test_dataset.pth",
-                test_sf=[10],
-               finger_name="finger_sf_11_floor3_dataset.pth",
-               max_pretrain=1500,max_finetune=1500,max_test=500)
-    # =================FLOOR4数据集生成========================= #
-    # txt_to_csv(f"FLOOR4")
-    # csv_to_csv(f"FLOOR4",PLM_params_path=r"model\v1\output\PLM_FLOOR4.csv")
-    # csv_to_pth(f"FLOOR4",
-    #            pretrain_name="floor4_sf_11_pretrain_dataset.pth",
-    #             finetune_name="floor4_sf_11_finetune_dataset.pth",
-    #             test_name="floor4_sf_11_test_dataset.pth",
-    #            finger_name="finger_sf_11_floor4_dataset.pth",
-    #            pretrain_sf=[11],finetune_sf=[11],finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19],test_sf=[11],
-    #            max_pretrain=100,max_finetune=1500,max_test=500)
-    
-    # 验证生成的pth数据集
-    # pretrain_pth=torch.load('model\\v1\\input\\floor4_sf_11_pretrain_dataset.pth')
-    # test_pth=torch.load('model\\v1\\input\\floor4_sf_11_test_dataset.pth')
-    # finetune_pth=torch.load('model\\v1\\input\\floor4_sf_11_finetune_dataset.pth')
-    
+                test_name="xx",
+                test_sf=[11],
+               finger_name="finger_sf_12_floor2_dataset.pth",
+               max_pretrain=100,max_finetune=1100,max_test=500)
     # rssi = pretrain_pth['rssi']
     # for i in range(rssi.shape[1]):
     #     print(f"Dimension {i}: min={rssi[:, i].min().item()}, max={rssi[:, i].max().item()}")
@@ -294,9 +283,9 @@ if __name__ == "__main__":
     # for i in range(pretrain_pth['snr'].shape[1]):
     #     print(f"snr Dimension {i}: min={pretrain_pth['snr'][:, i].min().item()}, max={pretrain_pth['snr'][:, i].max().item()}")
     
-    pretrain_pth=torch.load('model\\v1\\input\\floor3_sf_11_pretrain_dataset.pth')
-    test_pth=torch.load('model\\v1\\input\\floor4_sf_11_test_dataset.pth')
-    finetune_pth=torch.load('model\\v1\\input\\floor4_sf_11_finetune_dataset.pth')
+    pretrain_pth=torch.load('model\\v1\\input\\'+pretrain_pth_name)
+    test_pth=torch.load('model\\v1\\input\\'+test_pth_name)
+    finetune_pth=torch.load('model\\v1\\input\\'+finetune_pth_name)
     print("pretrain label shape: ",pretrain_pth['label'].shape)
     print("pretrain label unique: ", pretrain_pth['label'].unique())
     print("finetune rssi shape: ",finetune_pth['rssi'].shape)
@@ -307,3 +296,4 @@ if __name__ == "__main__":
     print("finetune sf unique values: ",finetune_pth['sf'].unique())
     print("test sf unique values: ",test_pth['sf'].unique())  
     print("finetune snr unique values: ",finetune_pth['snr'].unique())
+    input("Press Enter to exit...")  # 等待用户输入以查看输出

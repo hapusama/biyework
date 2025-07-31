@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.base import defaultdict
+from sklearn.metrics import accuracy_score
 import torch
 import os
 import pandas as pd
@@ -11,9 +12,12 @@ from src.dataset import generate_three_dataset_v2, ComplexDatasetLocs
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from collections import defaultdict
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, recall_score, precision_score,classification_report
 # 模型配置
 batch_size = 128
 input_dim=8
+# mode = 'knn'
 mode='generate'
 # mode='test'
 # mode='original'
@@ -24,7 +28,7 @@ lr = 1e-2
 # 优化器的学习率
 valid_size = 0.05
 test_size=0.25
-num_epochs = 200
+num_epochs = 100
 # num_epochs=250
 new_path = r'd:\Desktop\PHD\research\biyework\maml'
 ori_pth = r"model\v1\input\floor3_sf_11_pretrain_dataset.pth"
@@ -84,6 +88,30 @@ if "__main__"==__name__:
     # 5. 训练模型
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
+    if mode == 'knn':
+        data_pth = os.path.join(input_dir , "knn_sf11_floor3_dataset.pth")
+        loaded = torch.load(data_pth)
+        rssi = loaded['rssi']  # shape [batch_size,4]
+        snr = loaded['snr']
+        label = loaded['label'] # shape [batch_size,]
+        # 使用KNN进行分类
+
+        knn = KNeighborsClassifier(n_neighbors=5)
+        X = np.concatenate([rssi, snr], axis=1)
+        y = label
+        # 划分训练集和测试集
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+        knn.fit(X_train, y_train)
+        y_pred = knn.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        recall = recall_score(y_test, y_pred, average='macro')
+        precision = precision_score(y_test, y_pred, average='macro')
+        print(f"KNN Test Accuracy: {accuracy:.4f}")
+        print(f"KNN Test Recall (macro): {recall:.4f}")
+        print(f"KNN Test Precision (macro): {precision:.4f}")
+        print(classification_report(y_test, y_pred))
+        input("Enter to exit...")  # 等待用户输入以查看输出
+        
     if mode=='generate':
         for epoch in range(num_epochs):
             model.train()
@@ -143,6 +171,7 @@ if "__main__"==__name__:
         with torch.no_grad():
             label_correct = defaultdict(int)
             label_total = defaultdict(int)
+            label_pred_total = defaultdict(int)
             total_distance_error = 0.0
             unmatched_count = 0
             for batch_idx, (_, data_batch_real, _, label_int_batch) in enumerate(test_loader):
@@ -152,6 +181,7 @@ if "__main__"==__name__:
                 _, predicted = torch.max(outputs.data, 1)
                 for true_label, pred_label in zip(label_int_batch.cpu().numpy(), predicted.cpu().numpy()):
                     label_total[true_label] += 1
+                    label_pred_total[pred_label] += 1
                     if true_label == pred_label:
                         label_correct[true_label] += 1
                     else:
@@ -169,19 +199,29 @@ if "__main__"==__name__:
                 print(f"Average localization error for unmatched labels: {avg_distance_error:.4f}")
             else:
                 print("All labels matched, no localization error for unmatched labels.")
-        accuracy = correct / total
-        print(f"Test Accuracy: {accuracy:.4f}")
-
-        labels = list(label_total.keys())
+            accuracy = correct / total
+            recall = recall_score(label_int_batch.cpu().numpy(), predicted.cpu().numpy(), average='macro')
+            precision = precision_score(label_int_batch.cpu().numpy(), predicted.cpu().numpy(), average='macro')
+            print(f"Test Accuracy: {accuracy:.4f}")
+            print(f"Test Recall: {recall:.4f}")
+            print(f"Test Precision: {precision:.4f}")
+            print(classification_report(label_int_batch.cpu().numpy(), predicted.cpu().numpy()))
+        labels = sorted(set(list(label_total.keys()) + list(label_pred_total.keys())))
         accuracies = [label_correct[l] / label_total[l] if label_total[l] > 0 else 0 for l in labels]
+        recalls = [label_correct[l] / label_pred_total[l] if label_pred_total[l] > 0 else 0 for l in labels]
 
-        plt.figure(figsize=(10, 6))
-        plt.bar(labels, accuracies, color='skyblue')
+        x = np.arange(len(labels))
+        width = 0.35
+
+        plt.figure(figsize=(12, 6))
+        plt.bar(x - width/2, accuracies, width, label='Accuracy', color='skyblue')
+        plt.bar(x + width/2, recalls, width, label='Recall', color='orange')
         plt.xlabel('Label')
-        plt.ylabel('Accuracy')
-        plt.title('Per-label Accuracy')
-        plt.xticks(labels)
+        plt.ylabel('Score')
+        plt.title('Per-label Accuracy and Recall')
+        plt.xticks(x, labels)
         plt.ylim(0, 1)
+        plt.legend()
         plt.tight_layout()
         plt.show()
 
@@ -235,6 +275,7 @@ if "__main__"==__name__:
                 
                 correct += (predicted == label_int_batch).sum().item()
         accuracy = correct / total
+        recall = correct / (total - unmatched_count) if (total - unmatched_count) > 0 else 0
         print(f"Test Accuracy: {accuracy:.4f}")
     if mode=="ori" :
         loaded_data = torch.load(ori_pth)

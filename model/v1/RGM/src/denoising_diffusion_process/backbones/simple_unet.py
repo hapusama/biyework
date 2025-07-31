@@ -350,18 +350,6 @@ class UnetComplexBlock(nn.Module):
         time_2=time
         t = self.time_mlp(time_2)                                # (@ , ) => (@ , featuren_dim)
         # 在location进入cond之前，对location(batch_size, len)的len维度前三维和倒数第二维先乘上一个可学习参数，后续模型将重点学习这一部分特征
-        
-        # 创建可学习参数（只初始化一次）
-        if not hasattr(self, 'location_weight'):
-            # 权重 shape: (1, location.size(1)), 只对前三维和倒数第二维初始化为可学习参数，其余为1
-            weight = torch.ones(1, location.size(1), device=location.device)
-            idx = [0, 1, 2, -2]
-            for i in idx:
-                weight[0, i] = nn.Parameter(torch.randn(1, device=location.device))
-            self.location_weight = nn.Parameter(weight)
-
-        # 应用可学习参数
-        location = location * self.location_weight
         class_cond = self.class_emb(location)                    # (@, 3) => (@, feature_dim)
         class_cond = class_cond.unsqueeze(dim=1)                 # (@, dim) => (@, 1, feature_dim)
         x = torch.cat((feature_x, class_cond), dim=1)            # (@, 1, signal_feature_dim) => (@, 2, signal_feature_dim)

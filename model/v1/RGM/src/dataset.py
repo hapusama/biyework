@@ -183,7 +183,7 @@ def generate_three_loader_v3(dataset_t,
     indices = np.arange(len(dataset_t))
     
     train_temp_indices, test_indices = train_test_split(
-        indices, test_size=test_size, stratify=labels, random_state=42)
+        indices, test_size=test_size,random_state=42)
     
     train_temp_labels = [labels[i] for i in train_temp_indices]
     
