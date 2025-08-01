@@ -34,6 +34,7 @@ new_path = r'd:\Desktop\PHD\research\biyework\maml'
 ori_pth = r"model\v1\input\floor3_sf_11_pretrain_dataset.pth"
 location_vector_path = r"model\v1\output\location_vector_v2.csv"
 from tqdm import tqdm
+from thop import profile
 # 3. 构建模型
 class LocationClassifier(nn.Module):
     def __init__(self, input_dim, num_classes):
@@ -220,6 +221,7 @@ if "__main__"==__name__:
             mse_loss = nn.MSELoss()
             total_mse = 0.0
             num_batches = 0
+
             for batch_idx, (data_batch_fake, data_batch_real, _, label_int_batch) in enumerate(test_loader):
                 data_batch_fake, data_batch_real, label_int_batch = data_batch_fake.to(device), data_batch_real.to(device), label_int_batch.to(device)
                 data_batch_fake = data_batch_fake.squeeze(1)
@@ -228,6 +230,13 @@ if "__main__"==__name__:
                 mse = mse_loss(data_batch_real, data_batch_fake)
                 total_mse += mse.item()
                 num_batches += 1
+                # 评估系统开销：模型参数量和FLOPs
+                macs, params = profile(model, inputs=(data_batch_real,))
+                print(f"Model FLOPs (MACs): {macs}, Parameters: {params}, data_batch_size: {data_batch_real.size(0)}")
+                # 统计模型占用的系统内存（单位：MB）
+                mem_bytes = sum(param.element_size() * param.nelement() for param in model.parameters())
+                mem_mb = mem_bytes / (1024 ** 2)
+                print(f"Model memory usage: {mem_mb:.2f} MB")
                 outputs = model(data_batch_real)
                 _, predicted = torch.max(outputs.data, 1)
                 # 计算定位误差并收集所有误差
@@ -251,9 +260,9 @@ if "__main__"==__name__:
                 sorted_errors = np.sort(distance_errors)
                 cdf = np.arange(1, len(sorted_errors) + 1) / len(sorted_errors)
                 error = pd.DataFrame({
-                    'floor5': sorted_errors,
+                    '2finetune': sorted_errors,
                 })
-                cdf_csv_path = os.path.join(output_dir, 'floor3pre-floor5fine.csv')
+                cdf_csv_path = os.path.join(output_dir, '2finetune.csv')
                 error.to_csv(cdf_csv_path, index=False)
                 plt.figure()
                 plt.plot(sorted_errors, cdf, marker='.', linestyle='-')

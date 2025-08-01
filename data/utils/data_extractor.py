@@ -75,7 +75,7 @@ def txt_to_csv(file_path):
                         augmented_data = []
                         for _, row in df.iterrows():
                             rssi_values = row[rssi_columns].astype(float).values
-                            for _ in range(100):
+                            for _ in range(60):
                                 noise = np.random.normal(0, 1, size=rssi_values.shape)
                                 augmented_rssi = rssi_values + noise
                                 augmented_row = row.copy()
@@ -204,7 +204,7 @@ def csv_to_pth(
             df[feature] = (df[feature] - df[feature].mean()) / df[feature].std()+1e-3  # 防止除以0
     # 数据集划分
     pretrain_df = df[df['sf'].isin(pretrain_sf) & df['idx'].isin(pretrain_label)]
-    pretrain_df = pretrain_df.groupby(['idx', 'sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_pretrain), random_state=42))
+    pretrain_df = pretrain_df.groupby(['idx','sf'], group_keys=False).apply(lambda x: x.sample(n=min(len(x), max_pretrain), random_state=42))
     remaining_df = df.drop(pretrain_df.index)
 
     finetune_df = remaining_df[remaining_df['sf'].isin(finetune_sf) & remaining_df['idx'].isin(finetune_label)]
@@ -259,22 +259,21 @@ def csv_to_pth(
 
 
 if __name__ == "__main__":
-    pretrain_pth_name = "floor5_sf_11_pretrain_dataset.pth"
-    finetune_pth_name = "floor5_sf_11_finetune_dataset.pth"
-    test_pth_name = "floor5_sf_11_test_dataset.pth"
+    pretrain_pth_name = "xx.pth"
+    finetune_pth_name = "ab_spatial_finetune_sf11_floor4.pth"
+    test_pth_name = "ab_spatial_test_sf11_floor4.pth"
     # txt_to_csv(f"FLOOR3")
-    # csv_to_csv(f"FLOOR5",PLM_params_path=r"model\v1\output\PLM_FLOOR5.csv")
+    # csv_to_csv(f"FLOOR3",PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv")
     # finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19]
-    csv_to_pth(f"FLOOR5",
+    csv_to_pth(f"FLOOR4",
                pretrain_name=pretrain_pth_name,
                pretrain_sf=[11],
-                finetune_name="xx",
+                finetune_name=finetune_pth_name,
                 finetune_sf=[11],
-                finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19],
-                test_name="xx",
+                test_name=test_pth_name,
                 test_sf=[11],
                finger_name="finger_sf_12_floor2_dataset.pth",
-               max_pretrain=100,max_finetune=1100,max_test=500)
+               max_pretrain=1000,max_finetune=1100,max_test=500)
     # rssi = pretrain_pth['rssi']
     # for i in range(rssi.shape[1]):
     #     print(f"Dimension {i}: min={rssi[:, i].min().item()}, max={rssi[:, i].max().item()}")
