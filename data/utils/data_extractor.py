@@ -5,13 +5,21 @@ import torch
 # 定义固定列名
 fixed_columns = ['hdok', 'plok', 'none', 'nums', 'totalNums', 'average_rssi', 'snr', 'sf', 'tp', 'serial_size']
 save_file_path= os.path.join(os.getcwd(), 'data', 'processedData')
+
+# 空间采样间隔为9.7m
 # area1_list=[0,1,2,3,4,5]
 # area2_list=[6,7,8,9,10,11,12,13,14]
 # area3_list=[15,16,17,18,19,20]
 
-area1_list=[0,1,2,3,4,5,6,7,8,9,10]
-area2_list=[11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27]
-area3_list=[28,29,30,31,32,33,34,35,36]
+# 空间采样间隔为6.2m
+# area1_list=[0,1,2,3,4,5,6,7,8,9,10]
+# area2_list=[11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27]
+# area3_list=[28,29,30,31,32,33,34,35,36]
+
+# 空间采样间隔为14.9m
+area1_list=[0,1,2,3,4]
+area2_list=[5,6,7,8,9]
+area3_list=[10,11,12,13]
 def apply_kalman_filter(row, rssi_columns):
     rssi_values = row[rssi_columns].astype(float).values  # 转换为浮点数
     if len(rssi_values) > 0:  # 确保有数据可以进行滤波
@@ -114,7 +122,7 @@ def txt_to_csv(file_path):
                         df.to_csv(os.path.join(save_folder_path, txt_file.replace('.txt', '.csv')), index=False)
                         print(f"文件 {txt_file} 转换成功")
 #将每一层的CSV文件合并成一个CSV文件为 all_data.csv                        
-def csv_to_csv(file_floor,PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv",location_vector_path=r'model\v1\output\location_vector_5m.csv'):
+def csv_to_csv(file_floor,PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv",location_vector_path=r'model\v1\output\location_vector_20m.csv'):
     path_load='data/processedData'+ os.sep + file_floor
     new_file_save='data/processedData' + os.sep + file_floor + os.sep + 'all_data.csv'
     if os.path.isdir(path_load):
@@ -169,12 +177,12 @@ def csv_to_pth(
     test_name='test.pth',
     finger_name='finger.pth',
     pretrain_sf=[7,8,9,10,11,12],
-    pretrain_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36],
+    pretrain_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13],
     finetune_sf=[7,8,9,10,11,12],
-    finetune_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36],
+    finetune_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13],
     test_sf=[7,8,9,10,11,12],
-    test_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36],
-    location_vector_path=r'model\v1\output\location_vector_5m.csv',
+    test_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13],
+    location_vector_path=r'model\v1\output\location_vector_20m.csv',
     max_pretrain=2000,
     max_finetune=500,
     max_test=200,
@@ -263,12 +271,12 @@ def csv_to_pth(
 
 
 if __name__ == "__main__":
-    pretrain_pth_name = "5m_sf11_floor3_pretrain.pth"
-    finetune_pth_name = "5m_sf11_floor3_finetune.pth"
-    test_pth_name = "5m_sf11_floor3_test.pth"
+    pretrain_pth_name = "floor3_sf_11_pretrain_dataset.pth"
+    finetune_pth_name = "floor3_sf_10_finetune_dataset.pth"
+    test_pth_name = "20m_sf9_floor3_test.pth"
     # txt_to_csv(f"FLOOR3")
     csv_to_csv(f"FLOOR3",PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv")
-    # finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19]
+    finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19]
     csv_to_pth(f"FLOOR3",
                pretrain_name=pretrain_pth_name,
                pretrain_sf=[11],
@@ -278,7 +286,7 @@ if __name__ == "__main__":
                 test_name=test_pth_name,
                 test_sf=[9],
                finger_name="finger_sf_12_floor2_dataset.pth",
-               max_pretrain=500,max_finetune=500,max_test=500)
+               max_pretrain=0,max_finetune=0,max_test=700)
     # rssi = pretrain_pth['rssi']
     # for i in range(rssi.shape[1]):
     #     print(f"Dimension {i}: min={rssi[:, i].min().item()}, max={rssi[:, i].max().item()}")

@@ -109,8 +109,13 @@ if __name__ == '__main__':
     final_cols = ['location_id', 'x', 'y', 'distance', 'distance_true', 'true_x', 'true_y', 'idx']
     out_df = out_df[final_cols]
     out_df.to_csv(location_vector_path, index=False)
+    
     # 确保文件已经写入成功后再读取
     # 计算所有点之间的平均间隔（按 idx 顺序相邻）
+    
+    # # 读取 location_vector 文件
+    # out_df = pd.read_csv(location_vector_path)
+    # out_df = out_df.sort_values(by='idx').reset_index(drop=True)
     if len(out_df) > 1:
         coords = out_df[['true_x', 'true_y']].values
         diffs = np.linalg.norm(coords[1:] - coords[:-1], axis=1)

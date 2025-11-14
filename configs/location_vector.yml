@@ -7,7 +7,7 @@ gateway_Y: 460
 data_name: "FLOOR3_v2.pth"
 # Parameters for location classifier
 configs: "location_vector.yml"
-location_vector_name: "location_vector_5m.csv"
+location_vector_name: "location_vector_20m.csv"
 
 ##### Parameters used for area a #####
 # some parameters are reused for area b

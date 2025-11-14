@@ -15,26 +15,35 @@ from collections import defaultdict
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, recall_score, precision_score,classification_report
 # 模型配置
+
 batch_size = 128
-input_dim=6
+input_dim=8
 # mode = 'knn'
-# mode='generate'
+mode='generate'
 # mode='test'
 # mode='original'
-mode="ori"
-num_classes=37
+# mode="ori"
+num_classes=21
 # 批次的大小
 lr = 1e-2
 # 优化器的学习率
 valid_size = 0.05
 test_size=0.25
-# num_epochs = 100
-num_epochs=150
+num_epochs = 100
+# num_epochs=170
 new_path = r'd:\Desktop\PHD\research\biyework\maml'
-ori_pth = r"model\v1\input\5m_sf11_floor3_test.pth"
-# location_vector_path = r"model\v1\output\location_vector_v2.csv"
-location_vector_path = r"model\v1\output\location_vector_5m.csv"
+ori_pth = r"model\v1\input\floor3_sf_9_test_dataset.pth"
+location_vector_path = r"model\v1\output\location_vector_v2.csv"
+# location_vector_path = r"model\v1\output\location_vector_5m.csv"
+# location_vector_path = r"model\v1\output\location_vector_20m.csv"
+
+area1_list=[0,1,2,3,4,5]
+area2_list=[6,7,8,9,10,11,12,13,14]
+area3_list=[15,16,17,18,19,20]
 from tqdm import tqdm
+import time
+from torchinfo import summary
+import psutil
 # 3. 构建模型
 class LocationClassifier(nn.Module):
     def __init__(self, input_dim, num_classes):
@@ -89,6 +98,37 @@ if "__main__"==__name__:
     # 5. 训练模型
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
+    if mode == "test":
+        # 加载已训练模型
+        model.load_state_dict(torch.load(model_path_train))
+        model.eval()
+
+        # 随便取一条测试数据
+        for batch_idx, (_, data_batch_real, _, label_int_batch) in enumerate(test_loader):
+            data_batch_real = data_batch_real.to(device)
+            data_batch_real = data_batch_real.squeeze(1)
+            # 只取一条
+            single_data = data_batch_real[0].unsqueeze(0)
+            break
+            # 推理计时和计算开销
+        with torch.no_grad():
+            start_time = time.time()
+            output = model(single_data)
+            _, predicted = torch.max(output.data, 1)
+            end_time = time.time()
+            infer_time = end_time - start_time
+            # 计算推理时的 FLOPs 和参数量
+            model_summary = summary(model, input_size=single_data.shape, verbose=0)
+            flops = model_summary.total_mult_adds
+            params = model_summary.total_params
+            print(f"Inference time for one sample: {infer_time * 1000:.4f} ms")
+            print(f"Predicted label: {predicted.item()}")
+            print(f"Model FLOPs (per sample): {flops}")
+            print(f"Model total parameters: {params}")
+            # 内存开销
+            process = psutil.Process(os.getpid())
+            mem_info = process.memory_info()
+            print(f"Memory usage (RSS): {mem_info.rss / 1024 ** 2:.2f} MB")
     if mode == 'knn':
         data_pth = os.path.join(input_dir , "knn_sf11_floor3_dataset.pth")
         loaded = torch.load(data_pth)
@@ -175,11 +215,16 @@ if "__main__"==__name__:
             label_pred_total = defaultdict(int)
             total_distance_error = 0.0
             unmatched_count = 0
+            label_int_batch_total = []
+            predicted_total = []
             for batch_idx, (_, data_batch_real, _, label_int_batch) in enumerate(test_loader):
                 data_batch_real, label_int_batch = data_batch_real.to(device), label_int_batch.to(device)
                 data_batch_real = data_batch_real.squeeze(1)
                 outputs = model(data_batch_real)
                 _, predicted = torch.max(outputs.data, 1)
+                
+                label_int_batch_total.extend(label_int_batch.cpu().numpy())
+                predicted_total.extend(predicted.cpu().numpy())
                 for true_label, pred_label in zip(label_int_batch.cpu().numpy(), predicted.cpu().numpy()):
                     label_total[true_label] += 1
                     label_pred_total[pred_label] += 1
@@ -201,12 +246,63 @@ if "__main__"==__name__:
             else:
                 print("All labels matched, no localization error for unmatched labels.")
             accuracy = correct / total
-            recall = recall_score(label_int_batch.cpu().numpy(), predicted.cpu().numpy(), average='macro')
-            precision = precision_score(label_int_batch.cpu().numpy(), predicted.cpu().numpy(), average='macro')
+            recall = recall_score(label_int_batch_total, predicted_total, average='macro')
+            precision = precision_score(label_int_batch_total, predicted_total, average='macro')
             print(f"Test Accuracy: {accuracy:.4f}")
             print(f"Test Recall: {recall:.4f}")
             print(f"Test Precision: {precision:.4f}")
-            print(classification_report(label_int_batch.cpu().numpy(), predicted.cpu().numpy()))
+            # 统计每个区域的 recall、accuracy、precision
+            area_metrics = {}
+            for area_name, area_list in zip(['area1', 'area2', 'area3'], [area1_list, area2_list, area3_list]):
+                # 筛选属于该区域的标签
+                area_mask = np.isin(label_int_batch_total, area_list)
+                area_true = np.array(label_int_batch_total)[area_mask]
+                area_pred = np.array(predicted_total)[area_mask]
+                # accuracy
+                area_acc = np.mean(area_true == area_pred) if len(area_true) > 0 else 0
+                # recall
+                area_recall = recall_score(area_true, area_pred, labels=area_list, average='macro', zero_division=0) if len(area_true) > 0 else 0
+                # precision
+                area_precision = precision_score(area_true, area_pred, labels=area_list, average='macro', zero_division=0) if len(area_true) > 0 else 0
+                area_metrics[area_name] = {
+                    'accuracy': area_acc,
+                    'recall': area_recall,
+                    'precision': area_precision
+                }
+                print(f"{area_name} - Accuracy: {area_acc:.4f}, Recall: {area_recall:.4f}, Precision: {area_precision:.4f}")
+            print(classification_report(label_int_batch_total, predicted_total))
+            
+            # 统计距离网关不同distance范围的点的匹配结果
+            # 按照 distance_true 划分点的分组
+            distance_bins = [0, 15, 30, 45, 60, 75, np.inf]
+            distance_labels = ['0-15', '15-30', '30-45', '45-60', '60-75', '75+']
+            location_vector_df = pd.read_csv(location_vector_path)
+            location_vector_df['distance_bin'] = pd.cut(location_vector_df['distance_true'], bins=distance_bins, labels=distance_labels, right=False)
+
+            # 构建标签到距离分组的映射
+            label_to_distance_bin = location_vector_df.set_index('idx')['distance_bin'].to_dict()
+
+            # 收集每个分组的真实标签和预测标签
+            bin_true_labels = {bin_label: [] for bin_label in distance_labels}
+            bin_pred_labels = {bin_label: [] for bin_label in distance_labels}
+
+            for true_label, pred_label in zip(label_int_batch_total, predicted_total):
+                bin_label = label_to_distance_bin.get(true_label, None)
+                if bin_label is not None:
+                    bin_true_labels[bin_label].append(true_label)
+                    bin_pred_labels[bin_label].append(pred_label)
+
+            # 统计每个分组的 recall 和 precision
+            for bin_label in distance_labels:
+                true = np.array(bin_true_labels[bin_label])
+                pred = np.array(bin_pred_labels[bin_label])
+                if len(true) > 0:
+                    bin_recall = recall_score(true, pred, labels=np.unique(true), average='macro', zero_division=0)
+                    bin_precision = precision_score(true, pred, labels=np.unique(true), average='macro', zero_division=0)
+                    bin_acc = np.mean(true == pred)
+                    print(f"Distance bin {bin_label}: Accuracy={bin_acc:.4f}, Recall={bin_recall:.4f}, Precision={bin_precision:.4f}, Count={len(true)}")
+                else:
+                    print(f"Distance bin {bin_label}: No samples.")
         labels = sorted(set(list(label_total.keys()) + list(label_pred_total.keys())))
         accuracies = [label_correct[l] / label_total[l] if label_total[l] > 0 else 0 for l in labels]
         recalls = [label_correct[l] / label_pred_total[l] if label_pred_total[l] > 0 else 0 for l in labels]
@@ -277,10 +373,11 @@ if "__main__"==__name__:
                 correct += (predicted == label_int_batch).sum().item()
         accuracy = correct / total
         recall = correct / (total - unmatched_count) if (total - unmatched_count) > 0 else 0
+        
         print(f"Test Accuracy: {accuracy:.4f}")
     if mode=="ori" :
         loaded_data = torch.load(ori_pth)
-        rssi = loaded_data['rssi']  # shape [24576,6]
+        rssi = loaded_data['rssi']  
         snr = loaded_data['snr']
         label = loaded_data['label']
         
@@ -337,6 +434,9 @@ if "__main__"==__name__:
             label_pred_total = defaultdict(int)
             total_distance_error = 0.0
             unmatched_count = 0
+            # 收集所有测试集标签和预测结果
+            all_true_labels = []
+            all_pred_labels = []
             for batch_idx,(input_vec,_,label) in enumerate(test_loader):
                 input_vec, label = input_vec.to(device), label.to(device)
                 # input_vec = input_vec.view(-1, input_dim)
@@ -356,6 +456,8 @@ if "__main__"==__name__:
                             total_distance_error += dist
                             unmatched_count += 1
                 total += label.size(0)
+                all_true_labels.extend(label.cpu().numpy())
+                all_pred_labels.extend(predicted.cpu().numpy())
                 correct += (predicted == label).sum().item()
             if unmatched_count > 0:
                 avg_distance_error = total_distance_error / total
@@ -363,8 +465,9 @@ if "__main__"==__name__:
             else:
                 print("All labels matched, no localization error for unmatched labels.")
             accuracy = correct / total
-            recall = recall_score(label.cpu().numpy(), predicted.cpu().numpy(), average='macro')
-            precision = precision_score(label.cpu().numpy(), predicted.cpu().numpy(), average='macro')
+
+            recall = recall_score(all_true_labels, all_pred_labels, average='macro')
+            precision = precision_score(all_true_labels, all_pred_labels, average='macro')
             print(f"Test Accuracy: {accuracy:.4f}")
             print(f"Test Recall: {recall:.4f}")
             print(f"Test Precision: {precision:.4f}")

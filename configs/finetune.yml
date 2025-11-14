@@ -28,7 +28,7 @@ rgm_pretrain_path: "1_pretrained_rgm.ckpt"
 ##### New parameters for fine-tuning rGM #####
 data_name_ft: "floor3_sf_10_test_dataset.pth"  
 ratios_locs: 1                #1 这个对部分采样点不齐的样本进行设置，其他的选择手动划分
-data_name_fake: "test.pth" #1
+data_name_fake: "floor3_sf_11_area_fake_rgm.pth" #1
 save_model_name_fake: "classifier_fingerprint.ckpt"
 num_epochs_rgm_ft: 120
 rgm_fine_tune_path: "2_finetuned_rgm.ckpt"
