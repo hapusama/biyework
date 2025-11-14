@@ -16,23 +16,24 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, recall_score, precision_score,classification_report
 # 模型配置
 batch_size = 128
-input_dim=8
+input_dim=6
 # mode = 'knn'
-mode='generate'
+# mode='generate'
 # mode='test'
 # mode='original'
-# mode="ori"
-num_classes=21
+mode="ori"
+num_classes=37
 # 批次的大小
 lr = 1e-2
 # 优化器的学习率
 valid_size = 0.05
 test_size=0.25
-num_epochs = 100
-# num_epochs=250
+# num_epochs = 100
+num_epochs=150
 new_path = r'd:\Desktop\PHD\research\biyework\maml'
-ori_pth = r"model\v1\input\floor3_sf_11_pretrain_dataset.pth"
-location_vector_path = r"model\v1\output\location_vector_v2.csv"
+ori_pth = r"model\v1\input\5m_sf11_floor3_test.pth"
+# location_vector_path = r"model\v1\output\location_vector_v2.csv"
+location_vector_path = r"model\v1\output\location_vector_5m.csv"
 from tqdm import tqdm
 # 3. 构建模型
 class LocationClassifier(nn.Module):
@@ -279,7 +280,7 @@ if "__main__"==__name__:
         print(f"Test Accuracy: {accuracy:.4f}")
     if mode=="ori" :
         loaded_data = torch.load(ori_pth)
-        rssi = loaded_data['rssi']  # shape [24576,7]
+        rssi = loaded_data['rssi']  # shape [24576,6]
         snr = loaded_data['snr']
         label = loaded_data['label']
         
@@ -327,17 +328,65 @@ if "__main__"==__name__:
         model.eval()
         correct = 0
         total = 0
+        location_vector_df = pd.read_csv(location_vector_path)
+        coords = location_vector_df.set_index('idx')[['true_x', 'true_y']].to_dict('index')
+        adjacent_list = list(coords.keys())
         with torch.no_grad():
+            label_correct = defaultdict(int)
+            label_total = defaultdict(int)
+            label_pred_total = defaultdict(int)
+            total_distance_error = 0.0
+            unmatched_count = 0
             for batch_idx,(input_vec,_,label) in enumerate(test_loader):
                 input_vec, label = input_vec.to(device), label.to(device)
                 # input_vec = input_vec.view(-1, input_dim)
                 outputs = model(input_vec)
                 _, predicted = torch.max(outputs.data, 1)
+                for true_label, pred_label in zip(label.cpu().numpy(), predicted.cpu().numpy()):
+                    label_total[true_label] += 1
+                    label_pred_total[pred_label] += 1
+                    if true_label == pred_label:
+                        label_correct[true_label] += 1
+                    else:
+                        # 计算未匹配到的定位误差
+                        if true_label in coords and pred_label in coords:
+                            x1, y1 = coords[true_label]['true_x'], coords[true_label]['true_y']
+                            x2, y2 = coords[pred_label]['true_x'], coords[pred_label]['true_y']
+                            dist = np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+                            total_distance_error += dist
+                            unmatched_count += 1
                 total += label.size(0)
-                # 把匹配成功的点打印出来
-                matched_labels = label[predicted == label]
-                print(f"Matched Labels: {matched_labels.cpu().numpy()}")
-
                 correct += (predicted == label).sum().item()
+            if unmatched_count > 0:
+                avg_distance_error = total_distance_error / total
+                print(f"Average localization error for unmatched labels: {avg_distance_error:.4f}")
+            else:
+                print("All labels matched, no localization error for unmatched labels.")
+            accuracy = correct / total
+            recall = recall_score(label.cpu().numpy(), predicted.cpu().numpy(), average='macro')
+            precision = precision_score(label.cpu().numpy(), predicted.cpu().numpy(), average='macro')
+            print(f"Test Accuracy: {accuracy:.4f}")
+            print(f"Test Recall: {recall:.4f}")
+            print(f"Test Precision: {precision:.4f}")
+            print(classification_report(label.cpu().numpy(), predicted.cpu().numpy()))
+        labels = sorted(set(list(label_total.keys()) + list(label_pred_total.keys())))
+        accuracies = [label_correct[l] / label_total[l] if label_total[l] > 0 else 0 for l in labels]
+        recalls = [label_correct[l] / label_pred_total[l] if label_pred_total[l] > 0 else 0 for l in labels]
+
+        x = np.arange(len(labels))
+        width = 0.35
+
+        plt.figure(figsize=(12, 6))
+        plt.bar(x - width/2, accuracies, width, label='Accuracy', color='skyblue')
+        plt.bar(x + width/2, recalls, width, label='Recall', color='orange')
+        plt.xlabel('Label')
+        plt.ylabel('Score')
+        plt.title('Per-label Accuracy and Recall')
+        plt.xticks(x, labels)
+        plt.ylim(0, 1)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
         accuracy = correct / total
         print(f"Test Accuracy: {accuracy:.4f}")

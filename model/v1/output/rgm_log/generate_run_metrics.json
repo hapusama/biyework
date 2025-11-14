@@ -1,0 +1,23 @@
+{
+  "start_time": 1762930263.3181026,
+  "start_time_iso": "2025-11-12T14:51:03",
+  "end_time": 1762931874.844469,
+  "end_time_iso": "2025-11-12T15:17:54",
+  "duration_seconds": 1611.5263664722443,
+  "cpu_percent_avg": 31.081677018633542,
+  "cpu_percent_max": 63.2,
+  "process_rss_max_bytes": 1053032448,
+  "process_vms_max_bytes": 1613545472,
+  "cuda_current_allocated_max_bytes": 228193280,
+  "cuda_current_reserved_max_bytes": 333447168,
+  "samples_count": 322,
+  "cuda_peak_allocated_bytes": 248268800,
+  "cuda_peak_reserved_bytes": 333447168,
+  "cuda_current_allocated_bytes": 10469376,
+  "cuda_current_reserved_bytes": 333447168,
+  "detected_model_class": "PixelDiffusionConditional_v2",
+  "detected_model_total_params": 440967,
+  "detected_model_trainable_params": 440967,
+  "samples_generated": 10500,
+  "samples_per_second": 6.515562027685164
+}

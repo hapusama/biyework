@@ -13,6 +13,11 @@ from sklearn.preprocessing import MinMaxScaler
 from src import EMA
 from pytorch_lightning.callbacks import ModelCheckpoint
 import numpy as np
+import time, json
+import psutil
+import threading
+import statistics
+from typing import List, Dict
 torch.manual_seed(42)
 np.random.seed(42)
 
@@ -61,6 +66,67 @@ if __name__ == '__main__':
     rgm_logs = os.path.join(output_dir, f"rgm_log")
     os.makedirs(rgm_logs, exist_ok=True)
 
+    # --- Whole-run resource sampler ---
+    class ResourceSampler(threading.Thread):
+        """Background thread to sample CPU, RAM, and (optionally) CUDA memory during training."""
+        def __init__(self, sample_interval: float = 5.0):
+            super().__init__(daemon=True)
+            self.interval = sample_interval
+            self._stop_evt = threading.Event()
+            self.samples: List[Dict] = []
+            self.proc = psutil.Process()
+
+        def run(self):
+            # Prime cpu_percent measurement
+            psutil.cpu_percent(interval=None)
+            while not self._stop_evt.is_set():
+                ts = time.time()
+                cpu = psutil.cpu_percent(interval=None)
+                mem = self.proc.memory_info()
+                vm = psutil.virtual_memory()
+                sample = {
+                    'timestamp': ts,
+                    'cpu_percent': cpu,
+                    'process_rss_bytes': mem.rss,
+                    'process_vms_bytes': mem.vms,
+                    'system_available_mem_bytes': vm.available,
+                    'system_percent': vm.percent
+                }
+                # CUDA stats (if available)
+                try:
+                    if torch.cuda.is_available():
+                        sample['cuda_current_allocated_bytes'] = torch.cuda.memory_allocated()
+                        sample['cuda_current_reserved_bytes'] = torch.cuda.memory_reserved()
+                except Exception:
+                    pass
+
+                self.samples.append(sample)
+                # wait for interval or stop
+                self._stop_evt.wait(self.interval)
+
+        def stop(self):
+            self._stop_evt.set()
+
+        def get_summary(self):
+            if not self.samples:
+                return {}
+            cpu_vals = [s['cpu_percent'] for s in self.samples if 'cpu_percent' in s]
+            rss_vals = [s['process_rss_bytes'] for s in self.samples if 'process_rss_bytes' in s]
+            vms_vals = [s['process_vms_bytes'] for s in self.samples if 'process_vms_bytes' in s]
+            cuda_alloc = [s.get('cuda_current_allocated_bytes', 0) for s in self.samples]
+            cuda_resv = [s.get('cuda_current_reserved_bytes', 0) for s in self.samples]
+            return {
+                'cpu_percent_avg': statistics.mean(cpu_vals) if cpu_vals else None,
+                'cpu_percent_max': max(cpu_vals) if cpu_vals else None,
+                'process_rss_max_bytes': max(rss_vals) if rss_vals else None,
+                'process_vms_max_bytes': max(vms_vals) if vms_vals else None,
+                'cuda_current_allocated_max_bytes': max(cuda_alloc) if any(cuda_alloc) else None,
+                'cuda_current_reserved_max_bytes': max(cuda_resv) if any(cuda_resv) else None,
+                'samples_count': len(self.samples)
+            }
+
+    sampler = ResourceSampler(sample_interval=5.0)
+
     tb_logger = loggers.TensorBoardLogger(save_dir=rgm_logs, 
                                         name='', 
                                         version="rgm_pretrain")
@@ -105,8 +171,85 @@ if __name__ == '__main__':
                          enable_progress_bar=True,
                         check_val_every_n_epoch=1,
                         logger=tb_logger)
-    trainer.fit(model, train_loader, val_loader)
+    # Reset CUDA peak stats if CUDA is available
+    try:
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+    except Exception:
+        pass
 
-    trainer.save_checkpoint(model_path_train_rgm)
+    # Start background sampling
+    sampler.start()
+
+    overall_start = time.time()
+    try:
+        trainer.fit(model, train_loader, val_loader)
+        trainer.save_checkpoint(model_path_train_rgm)
+    except Exception as e:
+        print("Training raised exception:", e)
+        raise
+    finally:
+        # Stop sampler and wait for it
+        sampler.stop()
+        sampler.join(timeout=5.0)
+
+        overall_end = time.time()
+        total_seconds = overall_end - overall_start
+
+        # Build metrics summary
+        metrics = {}
+        metrics['start_time'] = overall_start
+        metrics['start_time_iso'] = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(overall_start))
+        metrics['end_time'] = overall_end
+        metrics['end_time_iso'] = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(overall_end))
+        metrics['duration_seconds'] = total_seconds
+
+        # sampler summary
+        sampler_summary = sampler.get_summary()
+        metrics.update(sampler_summary)
+
+        # Torch CUDA peak stats
+        try:
+            if torch.cuda.is_available():
+                metrics['cuda_peak_allocated_bytes'] = torch.cuda.max_memory_allocated()
+                metrics['cuda_peak_reserved_bytes'] = torch.cuda.max_memory_reserved()
+                metrics['cuda_current_allocated_bytes'] = torch.cuda.memory_allocated()
+                metrics['cuda_current_reserved_bytes'] = torch.cuda.memory_reserved()
+        except Exception:
+            pass
+
+        # model params
+        try:
+            model_class = type(model).__name__
+            total_params = sum(p.numel() for p in model.parameters())
+            trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+            metrics['detected_model_class'] = model_class
+            metrics['detected_model_total_params'] = total_params
+            metrics['detected_model_trainable_params'] = trainable_params
+        except Exception:
+            pass
+
+        # throughput estimate
+        try:
+            steps_per_epoch = len(train_loader)
+            # epochs run: trainer.current_epoch is 0-based and points to last completed epoch after fit
+            epochs_run = getattr(trainer, 'current_epoch', num_epochs)
+            # trainer.current_epoch may be last completed index, so epochs_run = current_epoch + 1 if training ran
+            if hasattr(trainer, 'current_epoch'):
+                epochs_run = trainer.current_epoch + 1
+            samples_processed = int(steps_per_epoch * epochs_run * batch_si)
+            metrics['samples_processed'] = samples_processed
+            metrics['samples_per_second'] = samples_processed / total_seconds if total_seconds > 0 else None
+        except Exception:
+            pass
+
+        # write JSON
+        out_path = os.path.join(rgm_logs, 'pretrain_run_metrics.json')
+        try:
+            with open(out_path, 'w', encoding='utf-8') as f:
+                json.dump(metrics, f, indent=2, ensure_ascii=False)
+            print(f"Wrote training metrics to: {out_path}")
+        except Exception as e:
+            print("Failed to write training metrics:", e)
+
     input("Training complete. Press Enter to exit...")
-        

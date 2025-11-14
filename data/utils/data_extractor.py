@@ -5,9 +5,13 @@ import torch
 # 定义固定列名
 fixed_columns = ['hdok', 'plok', 'none', 'nums', 'totalNums', 'average_rssi', 'snr', 'sf', 'tp', 'serial_size']
 save_file_path= os.path.join(os.getcwd(), 'data', 'processedData')
-area1_list=[0,1,2,3,4,5]
-area2_list=[6,7,8,9,10,11,12,13,14]
-area3_list=[15,16,17,18,19,20]
+# area1_list=[0,1,2,3,4,5]
+# area2_list=[6,7,8,9,10,11,12,13,14]
+# area3_list=[15,16,17,18,19,20]
+
+area1_list=[0,1,2,3,4,5,6,7,8,9,10]
+area2_list=[11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27]
+area3_list=[28,29,30,31,32,33,34,35,36]
 def apply_kalman_filter(row, rssi_columns):
     rssi_values = row[rssi_columns].astype(float).values  # 转换为浮点数
     if len(rssi_values) > 0:  # 确保有数据可以进行滤波
@@ -110,7 +114,7 @@ def txt_to_csv(file_path):
                         df.to_csv(os.path.join(save_folder_path, txt_file.replace('.txt', '.csv')), index=False)
                         print(f"文件 {txt_file} 转换成功")
 #将每一层的CSV文件合并成一个CSV文件为 all_data.csv                        
-def csv_to_csv(file_floor,PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv",location_vector_path=r'model\v1\output\location_vector_v2.csv'):
+def csv_to_csv(file_floor,PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv",location_vector_path=r'model\v1\output\location_vector_5m.csv'):
     path_load='data/processedData'+ os.sep + file_floor
     new_file_save='data/processedData' + os.sep + file_floor + os.sep + 'all_data.csv'
     if os.path.isdir(path_load):
@@ -165,12 +169,12 @@ def csv_to_pth(
     test_name='test.pth',
     finger_name='finger.pth',
     pretrain_sf=[7,8,9,10,11,12],
-    pretrain_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],
+    pretrain_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36],
     finetune_sf=[7,8,9,10,11,12],
-    finetune_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],
+    finetune_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36],
     test_sf=[7,8,9,10,11,12],
-    test_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],
-    location_vector_path=r'model\v1\output\location_vector_v2.csv',
+    test_label=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36],
+    location_vector_path=r'model\v1\output\location_vector_5m.csv',
     max_pretrain=2000,
     max_finetune=500,
     max_test=200,
@@ -191,13 +195,13 @@ def csv_to_pth(
     # 转换数据类型
     df = df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
 
-    # 特征列
-    # data_features = ['average_rssi','median_rssi','mode_rssi','rssi_skewness','rssi_kurtosis', "snr"] * times
+    # orch
+    # data_features = ['average_rssi','rssi_variance', 'median_rssi',"snr","mode_rssi"] * times
     # 我们的
-    data_features = ['average_rssi','rssi_variance', 'median_rssi', 'mode_rssi', "snr","residual"] * times
+    # data_features = ['average_rssi','rssi_variance', 'median_rssi', 'mode_rssi', "snr","residual"] * times
     
-    # orch-rssi
-    # data_features = ['average_rssi','rssi_variance', 'median_rssi',"snr"] * times
+    # ab-residual 实验保证输入维度一样，进而保证网络的参数规模一致
+    data_features = ['average_rssi','rssi_variance', 'median_rssi',"snr","mode_rssi","mode_rssi"] * times
     # 将df的data_features特征列进行归一化
     for feature in data_features:
         if feature in df.columns:
@@ -259,21 +263,22 @@ def csv_to_pth(
 
 
 if __name__ == "__main__":
-    pretrain_pth_name = "xx.pth"
-    finetune_pth_name = "ab_spatial_finetune_sf11_floor4.pth"
-    test_pth_name = "ab_spatial_test_sf11_floor4.pth"
+    pretrain_pth_name = "5m_sf11_floor3_pretrain.pth"
+    finetune_pth_name = "5m_sf11_floor3_finetune.pth"
+    test_pth_name = "5m_sf11_floor3_test.pth"
     # txt_to_csv(f"FLOOR3")
-    # csv_to_csv(f"FLOOR3",PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv")
+    csv_to_csv(f"FLOOR3",PLM_params_path=r"model\v1\output\PLM_FLOOR3.csv")
     # finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19]
-    csv_to_pth(f"FLOOR4",
+    csv_to_pth(f"FLOOR3",
                pretrain_name=pretrain_pth_name,
                pretrain_sf=[11],
                 finetune_name=finetune_pth_name,
-                finetune_sf=[11],
+                finetune_sf=[9],
+                finetune_label=[0,1,3,4,5,7,9,11,13,15,17,19],
                 test_name=test_pth_name,
-                test_sf=[11],
+                test_sf=[9],
                finger_name="finger_sf_12_floor2_dataset.pth",
-               max_pretrain=1000,max_finetune=1100,max_test=500)
+               max_pretrain=500,max_finetune=500,max_test=500)
     # rssi = pretrain_pth['rssi']
     # for i in range(rssi.shape[1]):
     #     print(f"Dimension {i}: min={rssi[:, i].min().item()}, max={rssi[:, i].max().item()}")

@@ -29,10 +29,7 @@ tsne_results = tsne.fit_transform(features)
 sf_data['tsne_1'] = tsne_results[:, 0]
 sf_data['tsne_2'] = tsne_results[:, 1]
 
-# 4. 可视化
-plt.figure(figsize=(10, 8))
-unique_labels = sf_data['idx'].unique()
-n_labels = len(unique_labels)
+
 # 5. 设置颜色调色板
 scientific_colors = [
     '#2E86C1',  # 深蓝（Pantone 7694 C）
@@ -54,22 +51,66 @@ scientific_colors = [
     '#C0392B',  # 重复色（需要时可扩展）
     '#1A5276'   # 重复色
 ]
+# 4. 可视化
+unique_labels = sf_data['idx'].unique()
+n_labels = len(unique_labels)
 palette = sns.color_palette(scientific_colors * (n_labels//len(scientific_colors)+1))[:n_labels]
+# 1. 增大画布尺寸（核心！让图更宽）
+plt.figure(figsize=(14, 10))  # 宽高比16:9，可改20:10等更大尺寸
+
+# 2. scatterplot 保持原参数
 sns.scatterplot(
     x='tsne_1', y='tsne_2', 
     hue='idx', 
     palette=palette, 
     data=sf_data, 
-    legend="full"
+    legend="full",
+    s=60  # 增大点的大小
 )
-n_labels = len(unique_labels)
 
+# 优化图例点大小和整体布局
 plt.grid(True)
-plt.xlabel("t-SNE Dimension 1")
-plt.ylabel("t-SNE Dimension 2")
-plt.legend(title='Location ID', bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.xlabel("t-SNE Dimension 1", fontsize=24, fontname='Arial')
+plt.ylabel("t-SNE Dimension 2", fontsize=24, fontname='Arial')
+plt.xticks(fontsize=20, fontname='Arial')
+plt.yticks(fontsize=20, fontname='Arial')
+
+# 关键修改：设置坐标轴比例为1:1，避免图形被拉伸或压缩
+plt.gca().set_aspect('equal', adjustable='box')
+
+# 调整图例字体和位置，使其居中且字体为Arial 20
+# leg = plt.legend(
+#     title='Location ID', 
+#     bbox_to_anchor=(1.02, 0.5),  # 让图例在右侧垂直居中
+#     loc='center left', 
+#     prop={'size': 20, 'family': 'Arial'}
+# )
+leg = plt.legend(
+    title='Location ID', 
+    bbox_to_anchor=(1.02, 0.5),  
+    loc='center left', 
+    prop={'size': 20, 'family': 'Arial'},  # 图例每一项的字体
+    title_fontproperties={'size': 20, 'family': 'Arial'}  # 标题“Location ID”的字体
+)
+if leg:
+    for handle in leg.legend_handles:
+        handle._sizes = [120]  # 图例点更大
+
+# 调整布局参数，让散点图在画布中居中且更宽松
+plt.subplots_adjust(
+    left=0.1,   # 左侧留白
+    right=0.8,  # 右侧给图例留空间，让散点图更居中
+    bottom=0.1, # 底部留白
+    top=0.9     # 顶部留白，避免散点图贴顶部
+)
 plt.tight_layout()
-# 保存图片
+
+# 保存图片（含图例）
 output_dir = r"data/processedData/FLOOR3"
 os.makedirs(output_dir, exist_ok=True)
-plt.savefig(f"{output_dir}/residual_sf_{sf}.png", dpi=300, bbox_inches='tight')
+plt.savefig(
+    f"{output_dir}/residual_sf_{sf}.png", 
+    dpi=300, 
+    bbox_inches='tight'  # 保证保存时完整包含元素
+)
+plt.show()

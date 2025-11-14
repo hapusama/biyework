@@ -2,7 +2,7 @@
 # some parameters are reused for area b
 # Training settings
 train_flag: True
-data_name: "ab_spatial_finetune_sf11_floor4.pth" #1
+data_name: "floor3_sf_10_finetune_dataset.pth" #1
 frac_for_valid: 0.15
 frac_for_test: 0.05
 
@@ -26,9 +26,9 @@ rgm_pretrain_path: "1_pretrained_rgm.ckpt"
 
 
 ##### New parameters for fine-tuning rGM #####
-data_name_ft: "ab_spatial_test_sf11_floor4.pth"  #1
-ratios_locs: 0.2                #1 这个对部分采样点不齐的样本进行设置，其他的选择手动划分
-data_name_fake: "2finetune_fake.pth" #1
+data_name_ft: "floor3_sf_10_test_dataset.pth"  
+ratios_locs: 1                #1 这个对部分采样点不齐的样本进行设置，其他的选择手动划分
+data_name_fake: "test.pth" #1
 save_model_name_fake: "classifier_fingerprint.ckpt"
 num_epochs_rgm_ft: 120
 rgm_fine_tune_path: "2_finetuned_rgm.ckpt"
