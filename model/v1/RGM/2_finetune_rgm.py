@@ -316,5 +316,6 @@ if __name__ == '__main__':
         except Exception as e:
             print("Failed to write training metrics:", e)
 
-    input("Training complete. Press Enter to exit...")
+    if os.environ.get("RGM_WAIT_FOR_ENTER", "0") == "1":
+        input("Training complete. Press Enter to exit...")
         

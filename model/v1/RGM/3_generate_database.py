@@ -193,6 +193,16 @@ if __name__ == '__main__':
             loc_tensor_last2 = loc_tensor[:, -2:]
             generated_data = torch.cat((generated_data, selected_feature), dim=2)
             real_data = torch.cat((real_data, loc_tensor_last2), dim=1)
+            if getattr(args, "calibrate_generated_stats", False):
+                real_signal = real_data[:, :length].to(generated_data.device)
+                gen_signal = generated_data[:, :, :length]
+                real_mean = real_signal.mean(dim=0, keepdim=True).unsqueeze(1)
+                real_std = real_signal.std(dim=0, keepdim=True, unbiased=False).clamp_min(1e-6).unsqueeze(1)
+                gen_mean = gen_signal.mean(dim=0, keepdim=True)
+                gen_std = gen_signal.std(dim=0, keepdim=True, unbiased=False).clamp_min(1e-6)
+                gen_signal = (gen_signal - gen_mean) / gen_std
+                gen_signal = gen_signal * real_std + real_mean
+                generated_data[:, :, :length] = gen_signal.clamp(-6.0, 6.0)
 
             x_generated_list.append(generated_data.cpu())
             print("generated_data shape: ", generated_data.shape)

@@ -65,12 +65,18 @@ class ComplexDatasetLocs(Dataset):
     def load_label_features(self, path):
         label_features = {}
         df = pd.read_csv(path)
+        base_columns = ['x', 'y', 'distance', 'wall_nums', 'window', 'floor']
+        extra_columns = [
+            column for column in df.columns
+            if column.startswith('multipath_') and column.endswith('_norm')
+        ]
+        feature_columns = base_columns + extra_columns
 
         for _, row in df.iterrows():
             if pd.notnull(row['x']) and pd.notnull(row['y']) and pd.notnull(row['distance']):
                 mapped_id = int(row['idx'])
-                vector = torch.tensor([row['x'], row['y'], row['distance'],row['wall_nums'],row['window'],row['floor']], dtype=torch.float32)
-                # vector = torch.tensor([row['x'], row['y'], row['distance']], dtype=torch.float32)
+                values = pd.to_numeric(row[feature_columns], errors='coerce').fillna(0.0).values
+                vector = torch.tensor(values, dtype=torch.float32)
                 label_features[mapped_id] = vector
          
         return label_features
@@ -94,6 +100,8 @@ class ComplexDatasetLocs(Dataset):
         #     raise ValueError(f"datasetloc part is None at index {idx}.")
         # complex_number = torch.stack((real, imaginary), dim=0)
         label_feature = self.label_features.get(label.item())
+        if label_feature is None:
+            raise KeyError(f"Missing label feature for label {label.item()}")
         # 将label_feature和snr cat在一起
         # 将label_feature和snr cat在一起
         label_feature = torch.cat((label_feature, snr), dim=0)        # 确保返回的值都是一维张量

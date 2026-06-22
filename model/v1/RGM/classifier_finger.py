@@ -3,6 +3,7 @@ from sklearn.base import defaultdict
 from sklearn.metrics import accuracy_score
 import torch
 import os
+import json
 import pandas as pd
 import torch.nn as nn
 from src.parameter_paser import parse_args_finetune
@@ -17,18 +18,18 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score,classi
 # 模型配置
 
 batch_size = 128
-input_dim=8
+input_dim = None
 # mode = 'knn'
 mode='generate'
 # mode='test'
 # mode='original'
 # mode="ori"
-num_classes=21
+num_classes = None
 # 批次的大小
 lr = 1e-2
 # 优化器的学习率
-valid_size = 0.05
-test_size=0.25
+valid_size = 0.2
+test_size=0.2
 num_epochs = 100
 # num_epochs=170
 new_path = r'd:\Desktop\PHD\research\biyework\maml'
@@ -73,12 +74,21 @@ if "__main__"==__name__:
 
     input_dir = r"model\v1\input"
     output_dir = r"model\v1\output"
+    location_vector_path = os.path.join(output_dir, args.location_vector_name)
     input_data_pth=os.path.join(output_dir,args.data_name_fake)
     print("input_data_pth: ", input_data_pth)
     model_path_train=os.path.join(output_dir,args.save_model_name_fake)
     print(f"model_path_train: {model_path_train}")
 
     complex_dataset_generated_real=torch.load(input_data_pth)
+    sample_fake, sample_real, _, _ = complex_dataset_generated_real[0]
+    input_dim = sample_fake.squeeze().numel()
+    labels_for_dim = [
+        int(complex_dataset_generated_real[i][3])
+        for i in range(len(complex_dataset_generated_real))
+    ]
+    num_classes = max(getattr(args, "num_locs", 0), max(labels_for_dim) + 1)
+    print(f"classifier input_dim: {input_dim}, num_classes: {num_classes}")
     
     train_loader,valid_loader,test_loader=generate_three_loader_v3(complex_dataset_generated_real, 
                                                                    batch_size, 
@@ -320,7 +330,26 @@ if "__main__"==__name__:
         plt.ylim(0, 1)
         plt.legend()
         plt.tight_layout()
-        plt.show()
+        metrics_out = os.path.splitext(model_path_train)[0] + "_metrics.json"
+        plot_out = os.path.splitext(model_path_train)[0] + "_per_label.png"
+        metrics_payload = {
+            "accuracy": float(accuracy),
+            "recall": float(recall),
+            "precision": float(precision),
+            "average_localization_error": float(avg_distance_error) if unmatched_count > 0 else 0.0,
+            "area_metrics": area_metrics,
+            "labels": [int(label) for label in labels],
+            "per_label_accuracy": [float(value) for value in accuracies],
+            "per_label_recall": [float(value) for value in recalls],
+            "input_dim": int(input_dim),
+            "num_classes": int(num_classes),
+        }
+        with open(metrics_out, "w", encoding="utf-8") as fp:
+            json.dump(metrics_payload, fp, indent=2, ensure_ascii=False)
+        plt.savefig(plot_out, dpi=160)
+        plt.close()
+        print(f"Saved classifier metrics to {metrics_out}")
+        print(f"Saved per-label plot to {plot_out}")
 
     if mode=='original':
         for epoch in range(num_epochs):
